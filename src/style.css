@@ -1,0 +1,63 @@
+:root {
+  --bg: #FFF5E6;          /* 与 scene.rml 的 Artboard 底色一致 */
+  --ink: #3A2E1E;
+  --debug-bg: rgba(255, 250, 240, .86);
+  --debug-line: rgba(120, 100, 70, .2);
+  --debug-ink: #6B5B45;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.6 ui-sans-serif, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* ---------- 舞台 ---------- */
+
+.hero {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 24px;
+}
+
+.sun-stage {
+  width: min(590px, 78vmin);
+  aspect-ratio: 590 / 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.sun-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- 调试面板（默认不显示，?debug=1 才挂上来） ---------- */
+
+.debug {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 8px 10px;
+  min-width: 190px;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--debug-ink);
+  background: var(--debug-bg);
+  border: 1px solid var(--debug-line);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  white-space: pre;
+  pointer-events: none;
+}
