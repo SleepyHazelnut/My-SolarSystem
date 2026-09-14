@@ -8,10 +8,8 @@
 </head>
 <body>
   <main class="hero">
-    <div class="sun-stage">
-      <canvas id="sun" width="590" height="600"
-              aria-label="会呼吸、可点击的太阳角色"></canvas>
-    </div>
+    <!-- 太阳角色的 SVG 由 src/sun.js 注入到这里；aria-label 写在注入的 <svg> 上 -->
+    <div class="sun-stage" id="sun"></div>
   </main>
 
   <script type="module" src="/src/main.js"></script>

@@ -1,30 +1,17 @@
 # 个人主页
 
-用 Rive 实现的太阳角色：会呼吸、眼睛跟随鼠标、可点击。
-
-Rive 工程位于 `rive/`，网页代码位于 `src/`。
-
-> 目前仅包含这一个角色，后续内容会陆续补充。
+太阳角色：会呼吸、眼睛跟随鼠标、可悬停、可点击。
 
 ## 运行
 
-`rive/build/rive.riv` 为编译产物，不入版本库。克隆仓库后须先编译，否则 `npm run dev` 会启动失败。
-
 ```bash
-# 1. 安装 Rive CLI。安装脚本会输出一行 export PATH=...，需加入 shell 配置
-curl -fsSL https://releases.rive.app/cli/install.sh | sh
-
-# 2. 编译角色工程
-cd rive && rive . --once && cd ..
-
-# 3. 启动开发服务器
 npm install
 npm run dev
 ```
 
 开发服务器地址：http://127.0.0.1:5173
 
-修改 `rive/scene.rml` 或 `rive/assets/sun/` 后，重新执行第 2 步。
+带 `?debug=1` 打开会在左下角挂一个调试面板（视线偏移、指针坐标、fps）。
 
 ### 构建
 
@@ -37,12 +24,16 @@ npm run preview    # 本地预览 dist/
 
 | 路径 | 说明 |
 |---|---|
-| `index.html`、`src/` | 网页（Vite）。`src/sun.js` 接入 Rive 运行时并实现视线跟随 |
-| `rive/` | Rive 工程。`rive/scene.rml` 是唯一需要手改的源文件 |
-| `rive/build/rive.riv` | 编译产物，前端唯一读取的文件 |
+| `index.html` | 页面骨架。角色的 `<svg>` 由 JS 注入到 `#sun` |
+| `src/main.js` | 页面入口 |
+| `src/sun.js` | 挂载与逐帧驱动：写 SVG 属性、绑定输入、视线跟随、逐帧时钟 |
+| `src/anim.js` | 缓动函数、三段动画的关键帧、状态机与混合器。纯逻辑，不碰 DOM |
+| `src/svg-scene.js` | SVG 图层结构，以及素材的导入 |
+| `src/assets/sun/` | 角色素材，13 张 PNG |
+| `src/style.css` | 样式 |
 
 ## 注意
 
-- 编译须使用 `rive . --once`。省略 `--once` 会常驻监听并留下多个 `.riv`。
-- `rive/assets/sun/` 中的素材文件名须为 ASCII。Rive CLI 不支持中文路径，会静默视为空资源。
-- `.riv` 不含脚本，本地 `--once` 的产物可直接用于网页，无需 `--publish` 签名。
+- 图层顺序在 `src/svg-scene.js` 里是**倒着写**的（SVG 中后声明 = 更上层），改动前先看该文件顶部的说明。
+- 角色的位置、缩放、各层不透明度由 `src/anim.js` 每帧写绝对值，不要在 SVG 里再叠一层静态 `transform`。
+- 视线跟随的三个参数（`RANGE` / `MAX_SHIFT` / `SMOOTH`）在 `src/sun.js` 里。

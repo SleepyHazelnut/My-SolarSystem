@@ -3,14 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "个人主页。Rive 太阳角色在 rive/ 里制作，这里负责在网页上展示。",
+  "description": "个人主页。太阳角色用 SVG + GSAP 实现，代码在 src/。",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@rive-app/canvas": "^2.43.1"
+    "gsap": "^3.12.5"
   },
   "devDependencies": {
     "vite": "^7.0.0"

@@ -3,10 +3,10 @@
  */
 import { mountSun } from './sun.js';
 
-const canvas = document.getElementById('sun');
+const root = document.getElementById('sun');
 
-if (!canvas) {
-  throw new Error('找不到 #sun canvas');
+if (!root) {
+  throw new Error('找不到 #sun 容器');
 }
 
 const debugOn = new URLSearchParams(location.search).get('debug') === '1';
@@ -20,16 +20,11 @@ if (debugOn) {
   document.body.appendChild(panel);
 }
 
-const sun = mountSun(canvas, {
+const sun = mountSun(root, {
   debug: panel
     ? (s) => {
-        const status = s.error
-          ? '错误  ' + s.error
-          : s.ready
-            ? '.riv 已加载'
-            : '加载中…';
         panel.textContent = [
-          status,
+          'SVG 太阳 · 运行中',
           `lookX ${s.lx.toFixed(2).padStart(7)}`,
           `lookY ${s.ly.toFixed(2).padStart(7)}`,
           `指针  ${s.sx.toFixed(0).padStart(4)} , ${s.sy.toFixed(0).padStart(4)}`,

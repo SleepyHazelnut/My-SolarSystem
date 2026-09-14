@@ -37,7 +37,8 @@ body {
   touch-action: manipulation;
 }
 
-.sun-stage canvas {
+/* 注入进来的 <svg> 撑满舞台。宽高交给 CSS，viewBox 590×600 负责等比缩放 */
+.sun-stage svg {
   display: block;
   width: 100%;
   height: 100%;
