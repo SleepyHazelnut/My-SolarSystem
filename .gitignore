@@ -1,13 +1,9 @@
 node_modules/
 dist/
 .workbuddy-ai/
-rive/星球素材/
-rive/assets/sun/flag.png
-rive/assets/sun/hat.png
-rive/NOTES.md
-rive/scripts/
-不用管/
-rive/build/
+_draft/
+星球素材/
+NOTES.md
 .vscode/*
 !.vscode/extensions.json
 .idea/
@@ -17,7 +13,7 @@ desktop.ini
 *.log
 npm-debug.log*
 
-# Python 缓存（rive/scripts/*.py 会生成）
+# Python 缓存（_draft/rive/scripts/*.py 会生成）
 __pycache__/
 *.pyc
 

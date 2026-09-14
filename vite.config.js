@@ -1,19 +1,12 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  // .riv 是自定义扩展名，显式声明成静态资源
-  assetsInclude: ['**/*.riv'],
-
   server: {
     host: '127.0.0.1',
     port: 5173,
     watch: {
-      // Rive 工程里这些和前端无关
-      ignored: [
-        '**/rive/assets/**',
-        '**/rive/星球素材/**',
-        '**/.workbuddy-ai/**',
-      ],
+      // 这三处都不属于前端源码：记忆文件、草稿区、原始设计稿
+      ignored: ['**/.workbuddy-ai/**', '**/_draft/**', '**/星球素材/**'],
     },
   },
 
