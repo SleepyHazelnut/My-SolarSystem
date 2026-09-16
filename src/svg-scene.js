@@ -23,7 +23,10 @@
  * 4) 命中区 <circle id="hit"> 故意放在 Sun 组**外面**：它不跟着呼吸上下动，
  *    否则贴边移动时 hover 会抖。半径 150 = scene.rml 里 SunHit 椭圆 300×300 的一半。
  *
- * 14 张 PNG 直接复用原设计稿（现位于 src/assets/sun/）：没有重绘，也没有转成矢量。
+ * 14 张 PNG 直接复用原设计稿：没有重绘，也没有转成矢量。
+ * 2026-10-03 起按用途分两个目录 ——
+ *   五官（表情）  src/assets/face/   cat_face / eye_dot / eye_closed / mouth_flat / mouth_round
+ *   身体与装饰    src/assets/sun/    sun_base / ring_outer / crown / flower / leaf / spark1~4
  * 发夹的花与叶是两张独立图（2026-09-29 拆），各自钉自己内容的 bbox 中心。
  *
  * ⚠️ 下面整块是**模板字符串**（反引号包起来的）。所以在这段 HTML 的注释里
@@ -31,14 +34,14 @@
  *    也**不能出现裸的 `${`**（会被当插值求值）。只有 `${IMG.xxx}` 是有意为之。
  *    2026-09-30 就踩过一次：注释里写了 `clip.rot`，`npm run build` 直接挂。
  */
-import cat_face from './assets/sun/cat_face.png';
+import cat_face from './assets/face/cat_face.png';
 import crown from './assets/sun/crown.png';
-import eye_closed from './assets/sun/eye_closed.png';
-import eye_dot from './assets/sun/eye_dot.png';
+import eye_closed from './assets/face/eye_closed.png';
+import eye_dot from './assets/face/eye_dot.png';
 import flower from './assets/sun/flower.png';
 import leaf from './assets/sun/leaf.png';
-import mouth_flat from './assets/sun/mouth_flat.png';
-import mouth_round from './assets/sun/mouth_round.png';
+import mouth_flat from './assets/face/mouth_flat.png';
+import mouth_round from './assets/face/mouth_round.png';
 import ring_outer from './assets/sun/ring_outer.png';
 import spark1 from './assets/sun/spark1.png';
 import spark2 from './assets/sun/spark2.png';
