@@ -2,8 +2,8 @@
  * 页面入口：把太阳挂到 #sun、地球挂到 #earth；
  * 加 `?debug=1` 时额外挂一个左下角调试面板。
  */
-import { mountSun } from './sun.js';
-import { mountEarth } from './earth.js';
+import { mountSun } from './characters/sun/index.js';
+import { mountEarth } from './characters/earth/index.js';
 
 const root = document.getElementById('sun');
 const earthRoot = document.getElementById('earth');

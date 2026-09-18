@@ -13,19 +13,19 @@
  *   动画口径：**茎不动**（只吃静态倾角 `rot`），两片叶吃**同一份** transform ——
  *   绕**同一个圆心**、同一个角度摆动，所以两片叶中间永远不会裂出空隙。
  *
- * ⚠️ 五官图层是从 `earth.png` 原样抠的，所以它和 `earth_base` **共用同一套变换**
+ * ⚠️ 五官图层是从合成图原样抠的（与 `earth_base` 逐像素对齐），所以它和 `earth_base` **共用同一套变换**
  *    （EARTH_T）—— 各写各的会在眨眼时错位。小芽、云、雨则相反：都是**单独摆上去的**，
  *    坐标一律是 viewBox 坐标（不是素材坐标）。
  */
 import gsap from 'gsap';
-import earth_base from './assets/earth/earth_base.png';
-import eye_open from './assets/earth/eye_open.png';
-import eye_half from './assets/earth/eye_half.png';
-import eye_closed from './assets/earth/eye_closed.png';
-import sprout_stem from './assets/earth/sprout_stem.png';
-import sprout_leaf_l from './assets/earth/sprout_leaf_l.png';
-import sprout_leaf_r from './assets/earth/sprout_leaf_r.png';
-import cloud from './assets/earth/cloud.png';
+import earth_base from '../../assets/earth/earth_base.png';
+import eye_open from '../../assets/earth/eye_open.png';
+import eye_half from '../../assets/earth/eye_half.png';
+import eye_closed from '../../assets/earth/eye_closed.png';
+import sprout_stem from '../../assets/earth/sprout_stem.png';
+import sprout_leaf_l from '../../assets/earth/sprout_leaf_l.png';
+import sprout_leaf_r from '../../assets/earth/sprout_leaf_r.png';
+import cloud from '../../assets/earth/cloud.png';
 
 const IMG = { earth_base, eye_open, eye_half, eye_closed, sprout_stem, sprout_leaf_l, sprout_leaf_r, cloud };
 
@@ -90,7 +90,7 @@ export const EARTH_SCENE = `
           <!-- 云 + 雨：**和地球绑定**（2026-10-03）。
                放进 #earthBob ⊃ #earthBreath 里 —— 于是它们跟着地球一起浮动 / 左右摆 /
                呼吸 / 被点击压扁，不再是「地球动了云还留在原地」。
-               位置仍由 earth.js 每帧重写，但写的是**相对地球**的位置。
+               位置仍由 index.js 每帧重写，但写的是**相对地球**的位置。
                ⚠️ 必须排在球体**之前**（= 画在球体下面）：雨的落点会压到球顶，
                   排在球体后面才不会被画在球面上。
                ⚠️ 雨还要排在云**之前**（= 画在云下面）：雨的起点 yTop 落在云体内部，
@@ -110,9 +110,9 @@ export const EARTH_SCENE = `
           <image id="earthEyeOpen" href="${IMG.eye_open}" x="0" y="0" width="2048" height="2048"
                  opacity="1" transform="${EARTH_T}" />
           <!-- 小芽：排在球体**之后** = 画在球体之上（用户 2026-10-03 定的）。
-               三份都是同一画布导出，直接叠就对位；茎与叶的 transform 由 earth.js 写
+               三份都是同一画布导出，直接叠就对位；茎与叶的 transform 由 index.js 写
                （茎写一次静态的，叶每帧写摆动的）。
-               layer=0 时 earth.js 会把这个组挪到球体之前。 -->
+               layer=0 时 index.js 会把这个组挪到球体之前。 -->
           <g id="earthSproutWrap" transform="translate(${SPROUT.x} ${SPROUT.y}) scale(${SPROUT.k})">
             <g id="earthSproutStem">
               <image href="${IMG.sprout_stem}" x="0" y="0" width="2048" height="2048" />

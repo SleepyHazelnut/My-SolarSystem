@@ -34,20 +34,20 @@
  *    也**不能出现裸的 `${`**（会被当插值求值）。只有 `${IMG.xxx}` 是有意为之。
  *    2026-09-30 就踩过一次：注释里写了 `clip.rot`，`npm run build` 直接挂。
  */
-import cat_face from './assets/face/cat_face.png';
-import crown from './assets/sun/crown.png';
-import eye_closed from './assets/face/eye_closed.png';
-import eye_dot from './assets/face/eye_dot.png';
-import flower from './assets/sun/flower.png';
-import leaf from './assets/sun/leaf.png';
-import mouth_flat from './assets/face/mouth_flat.png';
-import mouth_round from './assets/face/mouth_round.png';
-import ring_outer from './assets/sun/ring_outer.png';
-import spark1 from './assets/sun/spark1.png';
-import spark2 from './assets/sun/spark2.png';
-import spark3 from './assets/sun/spark3.png';
-import spark4 from './assets/sun/spark4.png';
-import sun_base from './assets/sun/sun_base.png';
+import cat_face from '../../assets/face/cat_face.png';
+import crown from '../../assets/sun/crown.png';
+import eye_closed from '../../assets/face/eye_closed.png';
+import eye_dot from '../../assets/face/eye_dot.png';
+import flower from '../../assets/sun/flower.png';
+import leaf from '../../assets/sun/leaf.png';
+import mouth_flat from '../../assets/face/mouth_flat.png';
+import mouth_round from '../../assets/face/mouth_round.png';
+import ring_outer from '../../assets/sun/ring_outer.png';
+import spark1 from '../../assets/sun/spark1.png';
+import spark2 from '../../assets/sun/spark2.png';
+import spark3 from '../../assets/sun/spark3.png';
+import spark4 from '../../assets/sun/spark4.png';
+import sun_base from '../../assets/sun/sun_base.png';
 
 export const IMG = { cat_face, crown, eye_closed, eye_dot, flower, leaf, mouth_flat, mouth_round, ring_outer, spark1, spark2, spark3, spark4, sun_base };
 
@@ -100,21 +100,21 @@ export const SVG_SCENE = `
              ① clip 必须挂在**环变换之外**的包装组上。环的变换是
                 translate → scale(sx sy) → rotate(rot) → translate(−O)；
                 clip 若挂到 rotate 内侧，那根切分线会跟着 ring.rot 一起转，接缝立刻歪。
-             ② 两半必须共用**同一份 transform 字符串**（sun.js 每帧写两遍）。
+             ② 两半必须共用**同一份 transform 字符串**（index.js 每帧写两遍）。
                 两边差一个字节，中间就会裂出一条缝。
              ③ 切分线必须跟着环心走 —— 环心的 y 就是 ring.y（变换里的第一个 translate）。
-                sun.js 每帧把这两个 rect 的 y/height 重写一遍。
+                index.js 每帧把这两个 rect 的 y/height 重写一遍。
                 ⚠️ 前后归属跟 RING_TILT.squash 的符号绑定：squash < 1 = 俯视 → 上半是远侧。
-                   哪天改成 > 1 或做负向侧转，sun.js 会自动把两个 rect 对调。
+                   哪天改成 > 1 或做负向侧转，index.js 会自动把两个 rect 对调。
              ⚠️ 切分线**只在侧转时成立**（2026-10-01 修正）：静止时环是正圆贴在太阳
                 外圈，没有深度可读，切一半只会读成「太阳把环啃了一口」。
-                所以 sun.js 按侧转量 k 把切分线往上停：k=1 落在环心，k=0 停到环外
+                所以 index.js 按侧转量 k 把切分线往上停：k=1 落在环心，k=0 停到环外
                 （= 整环归前半层 = 和没分层一模一样）。
              ⚠️ 两个 rect 的跨度必须**各自覆盖整环**：切分线会被停到 −900 附近，
                 前半层只给 1000 高的话下边界就停在 106，环的下半截会被裁掉。
                 所以用 SPAN = 2000。
              rect 的 y/height 只是初始值（对应 Idle 静止位、k=0、切分线停在环上方），
-             运行期一律由 sun.js 覆写。
+             运行期一律由 index.js 覆写。
              ============================================================ -->
         <clipPath id="ringClipBack" clipPathUnits="userSpaceOnUse">
           <rect id="ringClipBackRect" x="-800" y="-2000" width="1600" height="1105.7"/>
@@ -145,7 +145,7 @@ export const SVG_SCENE = `
 
           <!-- 0. 星环**远侧**（2026-10-01 前后分层）。画在太阳本体之前 = 在太阳之下。
                clip 挂在包装组上（在环变换之外），见 <defs> 里 ringClipBack 的注释。
-               ⚠️ 这里的 <image> 只放静态属性（尺寸），transform 由 sun.js 每帧写 ——
+               ⚠️ 这里的 <image> 只放静态属性（尺寸），transform 由 index.js 每帧写 ——
                   和 #ringFront 里那份**必须逐字节相同**。 -->
           <g id="ringBack" clip-path="url(#ringClipBack)">
             <image id="ringImgBack" href="${IMG.ring_outer}" x="0" y="0" width="1536" height="1536" />
@@ -157,7 +157,7 @@ export const SVG_SCENE = `
 
           <!-- 2. 五官：Face 节点 (0,4) scale 0.30。两层嵌套，职责分开：
                  #lookNod  点击时的「上下点头」（anim.js 每帧写绝对 y）
-                 #look     视线跟随（sun.js 用 gsap.quickTo 补间）
+                 #look     视线跟随（index.js 用 gsap.quickTo 补间）
                分开是为了让点头不被视线补间的 0.18s 阻尼吃掉。
                组内同样要倒着写：Rive 是 EyeDot→…→CatFace，这里 CatFace→…→EyeDot -->
           <g transform="translate(0 4) scale(0.30)">
@@ -212,7 +212,7 @@ export const SVG_SCENE = `
                   translate → scale(sx sy) → rotate(rot) → translate(-O)
                   写成「先 rotate 再 scale」的话，压缩轴会跟着环一起转，
                   看着像"总有个方向在挤它"而不是"这个环被斜着看"。
-               ⚠️ 这份 transform 与 #ringImgBack 的**逐字节相同**，由 sun.js 同一个字符串写入。 -->
+               ⚠️ 这份 transform 与 #ringImgBack 的**逐字节相同**，由 index.js 同一个字符串写入。 -->
           <g id="ringFront" clip-path="url(#ringClipFront)">
             <image id="ringImgFront" href="${IMG.ring_outer}" x="0" y="0" width="1536" height="1536" />
           </g>
@@ -232,7 +232,7 @@ export const SVG_SCENE = `
 
                  #sparkGlowGroup 是**只为 glow 滤镜存在的空壳**：它自己没有任何
                  transform，所以滤镜的 stdDeviation 单位是 Sun 坐标（见上面的 defs）。
-                 关掉 glow 时 sun.js 会把这个 filter 属性摘掉。 -->
+                 关掉 glow 时 index.js 会把这个 filter 属性摘掉。 -->
             <g id="sparkGlowGroup" filter="url(#sparkGlow)">
               <g id="spark4" opacity="0">
                 <image href="${IMG.spark4}" x="0" y="0" width="1536" height="1536" />

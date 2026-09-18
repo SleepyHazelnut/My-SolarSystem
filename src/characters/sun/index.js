@@ -6,7 +6,7 @@
  *   sun.destroy();   // 拆 ticker / 监听 / 补间，并把注入的 SVG 清掉
  *
  * 职责划分：
- *   svg-scene.js  图层结构（静态，14 张原图）
+ *   scene.js  图层结构（静态，14 张原图）
  *   anim.js       关键帧 + 状态机 + 混合器（纯逻辑）
  *   本文件         写回 DOM 属性、输入绑定、视线跟随、逐帧时钟
  *
@@ -17,7 +17,7 @@
  * 逐帧时钟走 gsap.ticker，视线补间走 gsap.quickTo —— 这两处是 GSAP 真正擅长的。
  */
 import gsap from 'gsap';
-import { SVG_SCENE } from './svg-scene.js';
+import { SVG_SCENE } from './scene.js';
 import { DEG, createMixer, FX, RING_TILT, ringTiltK } from './anim.js';
 
 /* ============================================================
@@ -34,7 +34,7 @@ export const LOOK_FOLLOW = false;
    入场（2026-09-30）
    ------------------------------------------------------------
    页面加载时角色直接以静止姿态出现，少了「登场」这一下。
-   这是一次性的**镜头级**效果，不是状态 —— 所以它写在 sun.js 而不是 anim.js：
+   这是一次性的**镜头级**效果，不是状态 —— 所以它写在 index.js 而不是 anim.js：
    anim.js 每帧输出的是「角色状态」，入场是叠在它外面的一层，结束后完全不参与。
    ⚠️ 缩放写在 #sun 上（它的局部原点就是太阳中心，所以是原地放大不是偏移放大），
       星环前后两层 / #crownGroup / 发夹都是它的子节点，会自动跟着一起弹入。
@@ -69,7 +69,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
   const sunEl = $('#sun');
   const sceneEl = $('#scene');
   /* 星环拆成前后两层（2026-10-01）：两半共用同一份 transform 字符串，
-     切分线（clip rect 的 y）跟着 ring.y 走。详见 svg-scene.js <defs> 的注释。 */
+     切分线（clip rect 的 y）跟着 ring.y 走。详见 scene.js <defs> 的注释。 */
   const ringImgBackEl = $('#ringImgBack');
   const ringImgFrontEl = $('#ringImgFront');
   const ringClipBackRectEl = $('#ringClipBackRect');
@@ -84,7 +84,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
 
   /* [id, 节点 x, 节点 y, 旋转°, originX×1536, originY×1536]
      ⚠️ x/y 是**烘死的绝对坐标**，不是「相对皇冠的偏移」—— 所以它们和
-     `svg-scene.js` 里皇冠的 `scale` 是**绑死的**：皇冠一改缩放，四颗星的位置必须重算，
+     `scene.js` 里皇冠的 `scale` 是**绑死的**：皇冠一改缩放，四颗星的位置必须重算，
      否则会「脱开」（星光还留在原地，皇冠已经变大了）。
      现值对应 **crownScale = 0.115**，由 `_draft/sun-tuner.html` 的
      `sparkPlacements()` 算出（模型：皇冠位置 + 整组偏移 + R(冠角+星角)·(画布中心→星心)·crownScale）。
@@ -97,7 +97,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
   ];
   SPARKS.forEach(([id]) => { byId[id] = $('#' + id); });
   const RING_OX = 0.5146 * 1536, RING_OY = 0.5244 * 1536;
-  /* 装饰的旋转支点 = 它们在 Sun 坐标系里的枢轴（**与 svg-scene.js 里各层的静态落点不是一回事**）：
+  /* 装饰的旋转支点 = 它们在 Sun 坐标系里的枢轴（**与 scene.js 里各层的静态落点不是一回事**）：
        CROWN_P   皇冠中心
        FLOWER_P  花盘自身的内容中心 —— 圆盘绕中心转最自然
        LEAF_P    叶的**梗根**，不是叶片中心 —— 梗根在花背后，所以叶子看着是
@@ -114,7 +114,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
     return [dx / n, dy / n];
   });
 
-  /* 星光 glow 开关（④）。滤镜本身写在 svg-scene.js 的 <defs> 里（静态），
+  /* 星光 glow 开关（④）。滤镜本身写在 scene.js 的 <defs> 里（静态），
      这里只决定要不要把它挂到 #sparkGlowGroup 上 —— 摘掉属性 = 完全不过滤镜，
      连那点 GPU 开销都省了。可逐实例覆盖：mountSun(root, { glow: false })。 */
   const GLOW_FILTER = 'url(#sparkGlow)';
@@ -237,7 +237,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
   }, { signal: ac.signal });
 
   /* ============================================================
-     6. 视线跟随：与旧的 Rive 版（src/sun.js）同一套（RANGE 300 / MAX_SHIFT 42 / SMOOTH 14）
+     6. 视线跟随：与旧的 Rive 版（旧的 sun 实现）同一套（RANGE 300 / MAX_SHIFT 42 / SMOOTH 14）
         这是 GSAP 真正擅长的部分 —— 逐帧平滑补间
         ⚠️ look = false 时**不注册监听、也不写位移**，但参数与补间原样保留（见文件头的 LOOK_FOLLOW）
         ============================================================ */
@@ -335,7 +335,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
     /**
      * 调试用：把一组值**直接写进 DOM**（绕过混合器）。
      * 逐帧截图脚本靠它回放 Node 侧算出来的真值 —— 走这里而不是在脚本里重抄一遍
-     * apply()，是为了避免变换写法两边漂移（改了 sun.js 却忘了改脚本，截图就成了假的）。
+     * apply()，是为了避免变换写法两边漂移（改了 index.js 却忘了改脚本，截图就成了假的）。
      */
     applyValues(v) { apply(v); },
     destroy() {
