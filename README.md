@@ -1,6 +1,6 @@
 # 个人主页
 
-太阳角色：会呼吸、会随机眨眼、可悬停、可点击。
+一组星球角色：**太阳**与**地球**。各自会呼吸、会随机眨眼、可悬停、可点击。
 
 ## 运行
 
@@ -24,12 +24,15 @@ npm run preview    # 本地预览 dist/
 
 | 路径 | 说明 |
 |---|---|
-| `index.html` | 页面骨架。角色的 `<svg>` 由 JS 注入到 `#sun` |
+| `index.html` | 页面骨架。两个角色的 `<svg>` 分别由 JS 注入到 `#sun` / `#earth` |
 | `src/main.js` | 页面入口 |
 | `src/sun.js` | 挂载与逐帧驱动：写 SVG 属性、绑定输入、视线跟随、逐帧时钟 |
 | `src/anim.js` | 缓动函数、三段动画的关键帧、状态机与混合器、点击星光特效、眨眼计时器。纯逻辑，不碰 DOM |
-| `src/svg-scene.js` | SVG 图层结构（含星光 glow 滤镜），以及素材的导入 |
-| `src/assets/sun/` | 角色素材，15 张 PNG（`clip.png` 是旧发夹素材，已不被引用） |
+| `src/svg-scene.js` | 太阳的 SVG 图层结构（含星光 glow 滤镜），以及素材的导入 |
+| `src/earth.js` | 地球角色：自己的 SVG 场景 + 手写动画（呼吸 / 整体摆动 / 三态眨眼 / 悬停 / 点击 / 云雨）。**不复用** `anim.js` 的状态机 |
+| `src/assets/sun/` | 身体与装饰素材，10 张 PNG（`sun_base` / `ring_outer` / `crown` / `flower` / `leaf` / `spark1~4`；`clip.png` 是旧发夹素材，已不被引用） |
+| `src/assets/face/` | 五官（表情）素材，5 张 PNG（`cat_face` / `eye_dot` / `eye_closed` / `mouth_flat` / `mouth_round`） |
+| `src/assets/earth/` | 地球素材：`earth_base`（球体，无五官）/ `eye_open`·`eye_half`·`eye_closed`（三态眼 + 嘴）/ `sprout_stem`（茎）·`sprout_leaf_l`（左叶）·`sprout_leaf_r`（右叶）/ `cloud`（云，在芽头上降雨） |
 | `src/style.css` | 样式 |
 
 ## 注意
@@ -52,3 +55,23 @@ npm run preview    # 本地预览 dist/
   `sparkGlow` 星光 glow（这一项在 `sun.js` / `svg-scene.js` 里生效）、`drift` 低频漂移（打破 3 秒锁相）、
   `decorPhase` 向日葵花与叶的相位漂移。
 - `src/anim.js` 是**手改的唯一源**，没有生成管线；改动画直接改它。
+- 地球（`src/earth.js`）是**独立的一套**，和太阳不共享代码。它的五官是从合成图 `星球素材/地球/地球.png` 里
+  **抠出来**的（底图做过最近邻修补），「半闭 / 闭」两个眼态由眼睛纵向压缩生成。
+  ⚠️ 三态眼与球体共用同一个变换 `EARTH_T` —— 各写各的会在眨眼时错位；
+  小芽则相反，它是**单独摆上去的**，`SPROUT` 里的 x/y 是 viewBox 坐标（不是素材坐标）。
+  小芽是**三份**（`sprout_stem` 茎 / `sprout_leaf_l` 左叶 / `sprout_leaf_r` 右叶，同一画布导出）：
+  **茎不动**（只吃静态倾角 `rot`，写一次就不再改），**只有两片叶摆** ——
+  两份叶吃**同一份 transform**（绕**同一个圆心**、同一个角度），所以中间永远不会裂出空隙。
+  圆心取两片叶的**接触点** `(1080,1100)`（素材坐标），每帧的变换是
+  `translate(-pivot) rotate(a pivot)` —— 少了前半截就会绕画布外的远处一点转、整支被甩飞。
+  ⚠️ `x/y` 与 `pivot` 绑死：渲染结果是 `(x,y) + k·R(rot)·(p − pivot)`，单独改 pivot 会让整株平移，
+  换圆心要按 `(x,y) += k·R(rot)·(pivot′ − pivot)` 补偿（调参页有「圆心移到茎顶」按钮做这件事）。
+  芽排在球体**之后**（= 画在球体之上，`SPROUT.layer` 可切），且整个 `#earthBreath` 一起呼吸、
+  `#earthBob` 一起浮动，所以芽和球是「绑在一起」的。
+  云和雨放在 `#earthBob ⊃ #earthBreath ⊃ #earthSky` 里，**和地球绑定** ——
+  地球浮动 / 左右摆 / 呼吸 / 被点击压扁时，云和雨都跟着一起走（云只是在这个基础上再叠自己的上下漂移）。
+  调试页：`_draft/earth-tuner.html`（含「叶的摆角」预览滑块，可停在极限位看叶和茎接不接得上）。
+  雨滴是纯 SVG 生成（没有素材）：水滴形 `path`，从云底落到芽顶，大小 / 速度 / 相位各自随机。
+  ⚠️ 雨的组排在云**之前**（画在云下面）—— 起点落在云体内部，靠云挡住上半程才读得成「从云里落下来」。
+  点击：地球纵向 ×0.86、横向 ×1.09；**两片叶额外被甩一下**（`EARTH.whipAmp / whipHz / whipZeta / whipDur`，
+  一次冲激 + 指数衰减，sin 起手）；云因为绑在地球上，跟着一起吃这个压扁。

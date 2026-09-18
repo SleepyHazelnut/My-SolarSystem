@@ -23,22 +23,35 @@ body {
 /* ---------- 舞台 ---------- */
 
 .hero {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5vmin;
   width: 100%;
   padding: 24px;
 }
 
 .sun-stage {
-  width: min(590px, 78vmin);
+  width: min(560px, 60vmin);
   aspect-ratio: 590 / 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-/* 注入进来的 <svg> 撑满舞台。宽高交给 CSS，viewBox 590×600 负责等比缩放 */
-.sun-stage svg {
+/* 地球（2026-10-03）：viewBox 440×560 —— 上方留了云和雨的空间 */
+.earth-stage {
+  width: min(400px, 43vmin);
+  aspect-ratio: 440 / 560;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 注入进来的 <svg> 撑满舞台。宽高交给 CSS，viewBox 负责等比缩放 */
+.sun-stage svg,
+.earth-stage svg {
   display: block;
   width: 100%;
   height: 100%;
