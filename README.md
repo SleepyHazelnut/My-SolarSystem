@@ -29,7 +29,9 @@ npm run preview    # 本地预览 dist/
 | `src/characters/sun/index.js` | 挂载与逐帧驱动：写 SVG 属性、绑定输入、视线跟随、逐帧时钟 |
 | `src/characters/sun/anim.js` | 缓动函数、三段动画的关键帧、状态机与混合器、点击星光特效、眨眼计时器。纯逻辑，不碰 DOM |
 | `src/characters/sun/scene.js` | 太阳的 SVG 图层结构（含星光 glow 滤镜），以及素材的导入 |
-| `src/characters/earth/index.js` | 地球角色：自己的 SVG 场景 + 手写动画（呼吸 / 整体摆动 / 三态眨眼 / 悬停 / 点击 / 云雨）。**不复用** `anim.js` 的状态机 |
+| `src/characters/earth/index.js` | 地球的挂载与逐帧驱动：写 SVG 属性、绑定输入、逐帧时钟。**不复用**太阳的状态机 |
+| `src/characters/earth/anim.js` | 地球的几何落点、动画参数与每帧的数值计算（呼吸 / 摆动 / 三态眨眼 / 云雨 / 叶的冲激）。纯逻辑，不碰 DOM |
+| `src/characters/earth/scene.js` | 地球的 SVG 图层结构，以及素材的导入 |
 | `src/assets/sun/` | 身体与装饰素材，9 张 PNG（`sun_base` / `ring_outer` / `crown` / `flower` / `leaf` / `spark1~4`） |
 | `src/assets/face/` | 五官（表情）素材，5 张 PNG（`cat_face` / `eye_dot` / `eye_closed` / `mouth_flat` / `mouth_round`） |
 | `src/assets/earth/` | 地球素材：`earth_base`（球体，无五官）/ `eye_open`·`eye_half`·`eye_closed`（三态眼 + 嘴）/ `sprout_stem`（茎）·`sprout_leaf_l`（左叶）·`sprout_leaf_r`（右叶）/ `cloud`（云，在芽头上降雨） |
@@ -55,7 +57,8 @@ npm run preview    # 本地预览 dist/
   `sparkGlow` 星光 glow（这一项在 `index.js` / `scene.js` 里生效）、`drift` 低频漂移（打破 3 秒锁相）、
   `decorPhase` 向日葵花与叶的相位漂移。
 - `src/characters/sun/anim.js` 是**手改的唯一源**，没有生成管线；改动画直接改它。
-- 地球（`src/characters/earth/index.js`）是**独立的一套**，和太阳不共享代码。它的五官是从合成图 `星球素材/地球/地球.png` 里
+- 地球（`src/characters/earth/`，三层同太阳：`index.js` / `anim.js` / `scene.js`）是**独立的一套**，和太阳不共享代码。
+  它的五官是从合成图 `星球素材/地球/地球.png` 里
   **抠出来**的（底图做过最近邻修补），「半闭 / 闭」两个眼态由眼睛纵向压缩生成。
   ⚠️ 三态眼与球体共用同一个变换 `EARTH_T` —— 各写各的会在眨眼时错位；
   小芽则相反，它是**单独摆上去的**，`SPROUT` 里的 x/y 是 viewBox 坐标（不是素材坐标）。
