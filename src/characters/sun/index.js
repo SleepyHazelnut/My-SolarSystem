@@ -19,6 +19,9 @@
 import gsap from 'gsap';
 import { SVG_SCENE } from './scene.js';
 import { DEG, createMixer, FX, RING_TILT, ringTiltK } from './anim.js';
+import { clampDt, createFpsCounter } from '../../shared/clock.js';
+import { approach } from '../../shared/approach.js';
+import { bindPointerInput } from '../../shared/input.js';
 
 /* ============================================================
    视线跟随总开关（2026-09-30 暂时关掉）
@@ -223,18 +226,22 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
         up 挂 window：在太阳上按下、移出去再松手也要清掉 pressed，否则会卡在 Clicked
         ============================================================ */
   const hit = $('#hit');
-  hit.addEventListener('pointerenter', () => { mixer.setHover(true); }, { signal: ac.signal });
-  hit.addEventListener('pointerleave', () => { mixer.setHover(false); }, { signal: ac.signal });
-  hit.addEventListener('pointerdown', (e) => {
-    mixer.setPressed(true);
-    hit.setPointerCapture?.(e.pointerId);
-  }, { signal: ac.signal });
-  window.addEventListener('pointerup', () => { mixer.setPressed(false); }, { signal: ac.signal });
-  window.addEventListener('pointercancel', () => { mixer.setPressed(false); }, { signal: ac.signal });
-  window.addEventListener('blur', () => {
-    mixer.setPressed(false);
-    tx = SUN.x; ty = SUN.y;   // 窗口失焦 → 视线目标回中位
-  }, { signal: ac.signal });
+  bindPointerInput(hit, ac, {
+    onEnter: () => mixer.setHover(true),
+    /* ⚠️ 太阳这里**不清 pressed**（地球才清）—— 按住时指针移出太阳再松手，
+       收尾由 window 上的 up 负责，中途移出不算松手。 */
+    onLeave: () => mixer.setHover(false),
+    onDown: (e) => {
+      mixer.setPressed(true);
+      hit.setPointerCapture?.(e.pointerId);
+    },
+    onUp: () => mixer.setPressed(false),
+    onCancel: () => mixer.setPressed(false),
+    onBlur: () => {
+      mixer.setPressed(false);
+      tx = SUN.x; ty = SUN.y;   // 窗口失焦 → 视线目标回中位
+    },
+  });
 
   /* ============================================================
      6. 视线跟随：与旧的 Rive 版（旧的 sun 实现）同一套（RANGE 300 / MAX_SHIFT 42 / SMOOTH 14）
@@ -263,9 +270,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
   /* ============================================================
      7. 主循环
         ============================================================ */
-  let fps = 0;
-
-  let frames = 0, fpsAt = performance.now();
+  const fpsC = createFpsCounter();
 
   /* 入场进度（秒）。`prefers-reduced-motion: reduce` 时按「已播完」处理，直接是终态 */
   const REDUCED = typeof matchMedia === 'function' &&
@@ -273,13 +278,12 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
   let introT = (intro && !REDUCED) ? 0 : INTRO.dur;
 
   function tick(time, deltaMs) {
-    const dt = Math.min(deltaMs / 1000, 0.1);
+    const dt = clampDt(deltaMs);
     if (introT < INTRO.dur) introT += dt;
 
     /* 视线平滑：指数滤波，与帧率无关 */
-    const k = 1 - Math.exp(-SMOOTH * dt);
-    sx += (tx - sx) * k;
-    sy += (ty - sy) * k;
+    sx = approach(sx, tx, SMOOTH, dt);
+    sy = approach(sy, ty, SMOOTH, dt);
     const dx = sx - SUN.x, dy = sy - SUN.y;
     const d = Math.hypot(dx, dy);
     let lx = 0, ly = 0;
@@ -301,13 +305,7 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
     apply(v);
 
     /* fps：每 500 ms 统计一次，顺手喂给 ?debug=1 的面板 */
-    frames++;
-    const nowMs = time * 1000;
-    if (nowMs - fpsAt >= 500) {
-      fps = Math.round(frames * 1000 / (nowMs - fpsAt));
-      frames = 0; fpsAt = nowMs;
-      debug?.({ ready: true, lx, ly, sx, sy, fps });
-    }
+    if (fpsC.tick(time)) debug?.({ ready: true, lx, ly, sx, sy, fps: fpsC.fps });
   }
   gsap.ticker.add(tick);
 

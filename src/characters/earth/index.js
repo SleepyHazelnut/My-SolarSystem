@@ -16,6 +16,8 @@
 import gsap from 'gsap';
 import { EARTH_SCENE } from './scene.js';
 import { CX, CY, CLOUD, SPROUT, SPROUT_PIVOT_T, DROP_D, createEarthAnim } from './anim.js';
+import { clampDt, createFpsCounter } from '../../shared/clock.js';
+import { bindPointerInput } from '../../shared/input.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -73,16 +75,19 @@ export function mountEarth(root, opts = {}) {
      按下时顺手把叶子的冲激时钟归零（triggerWhip）。 ---------- */
   let hovered = false, pressed = false;
 
-  hitEl.addEventListener('pointerenter', () => { hovered = true; }, { signal: ac.signal });
-  hitEl.addEventListener('pointerleave', () => { hovered = false; pressed = false; }, { signal: ac.signal });
-  hitEl.addEventListener('pointerdown', () => { pressed = true; anim.triggerWhip(); }, { signal: ac.signal });
-  window.addEventListener('pointerup', () => { pressed = false; }, { signal: ac.signal });
+  bindPointerInput(hitEl, ac, {
+    onEnter: () => { hovered = true; },
+    /* ⚠️ 地球这里**连带清掉 pressed**（太阳不清）—— 指针移出球体就算松手。 */
+    onLeave: () => { hovered = false; pressed = false; },
+    onDown: () => { pressed = true; anim.triggerWhip(); },
+    onUp: () => { pressed = false; },
+  });
 
   /* ---------- 主循环 ---------- */
-  let fps = 0, frames = 0, fpsAt = performance.now();
+  const fpsC = createFpsCounter();
 
   function tick(time, deltaMs) {
-    const dt = Math.min(deltaMs / 1000, 0.1);
+    const dt = clampDt(deltaMs);
     const v = anim.step(dt, { hovered, pressed });
 
     /* 浮动 + 左右摆：绕**球心**转，所以读起来是「站着的球在晃」而不是「原地自转」 */
@@ -124,19 +129,15 @@ export function mountEarth(root, opts = {}) {
     eyeEls[2].setAttribute('opacity', v.eyes[2].toFixed(4));
 
     /* fps：每 500 ms 统计一次，顺手喂给 ?debug=1 的面板 */
-    frames++;
-    const nowMs = time * 1000;
-    if (nowMs - fpsAt >= 500) {
-      fps = Math.round(frames * 1000 / (nowMs - fpsAt));
-      frames = 0; fpsAt = nowMs;
-      debug?.({ ready: true, fps, hover: anim.hoverW, press: anim.pressW, blink: v.blink });
+    if (fpsC.tick(time)) {
+      debug?.({ ready: true, fps: fpsC.fps, hover: anim.hoverW, press: anim.pressW, blink: v.blink });
     }
   }
   gsap.ticker.add(tick);
 
   return {
     ready: true,
-    get fps() { return fps; },
+    get fps() { return fpsC.fps; },
     get blink() { return anim.blinkValue(); },
     /** 调试：立刻眨一次 */
     blinkNow() { anim.blinkNow(); },

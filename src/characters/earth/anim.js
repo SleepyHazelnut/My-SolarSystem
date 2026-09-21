@@ -1,8 +1,9 @@
 /**
  * 地球角色的**纯逻辑**：几何落点 + 动画参数 + 每帧的数值计算。
  *
- * 这一层**零 import** —— 不引素材、不碰 DOM、不用 gsap（和太阳的 `anim.js` 同一约定），
- * 所以它能在 Node 里直接 `import` 做纯逻辑断言，也能给多个实例共用。
+ * 这一层**只依赖 `src/shared/` 里的纯原语**（缓动 / 眨眼 / 冲激 / 逼近），
+ * 不引素材、不碰 DOM、不用 gsap —— 所以它照旧能在 Node 里直接 `import` 做纯逻辑断言，
+ * 也能给多个实例共用。
  *
  * ⚠️ 与太阳的一处分工差异：太阳的 `scene.js` 把几何数字**抄成字面量**（皇冠 `scale`、4 颗星光坐标），
  *    同一件事写在两个文件里，得靠 `_draft/_verify-handoff.mjs` 复核有没有漂移。
@@ -25,6 +26,10 @@
  *    **共用同一套变换**（`EARTH_T`）—— 各写各的会在眨眼时错位。小芽、云、雨则相反：
  *    都是**单独摆上去的**，坐标一律是 viewBox 坐标（不是素材坐标）。
  */
+import { smoothstep, easeOutQuad } from '../../shared/easing.js';
+import { dampedImpulse } from '../../shared/impulse.js';
+import { approach } from '../../shared/approach.js';
+import { createBlinkLayer } from '../../shared/blink.js';
 
 /* ---------- 素材几何（2048 画布，实测） ---------- */
 export const SRC = { cx: 960, cy: 1072, r: 664 };
@@ -122,7 +127,8 @@ export const EARTH = {
   blinkCloseF: 5, blinkHoldF: 1, blinkOpenF: 3,
 };
 
-/** 一次眨眼的总时长（秒）：闭 5 帧 + 保持 1 帧 + 睁 3 帧 */
+/** 一次眨眼的总时长（秒）：闭 5 帧 + 保持 1 帧 + 睁 3 帧。
+    ⚠️ 和 `shared/blink.js` 内部算的 `dur` 是同一个式子，改帧数时两处自动一致。 */
 export const BLINK_DUR = (EARTH.blinkCloseF + EARTH.blinkHoldF + EARTH.blinkOpenF) / 60;
 
 /** 把闭眼量 b(0~1) 拆成 睁/半闭/闭 三段不透明度（相邻两段权重和恒为 1） */
@@ -167,25 +173,17 @@ export function createEarthAnim({ rand = Math.random } = {}) {
   /* 叶子甩动的冲激时钟：<0 = 没在甩 */
   let whipT = -1;
 
-  /* ---------- 眨眼计时器（逐实例） ---------- */
-  let blinkT = -1;
-  let blinkWait = EARTH.blinkFirstMin + rand() * (EARTH.blinkFirstMax - EARTH.blinkFirstMin);
-  const scheduleBlink = () => {
-    const span = EARTH.blinkMin + rand() * (EARTH.blinkMax - EARTH.blinkMin);
-    blinkWait = Math.max(span - BLINK_DUR, 0);
-  };
-  /** 闭眼量 0~1 */
-  const blinkValue = () => {
-    if (blinkT < 0) return 0;
-    const f = blinkT * 60;
-    const { blinkCloseF: cf, blinkHoldF: hf, blinkOpenF: of } = EARTH;
-    if (f < cf) { const u = f / cf; return u * u * (3 - 2 * u); }      // smoothstep 闭合
-    if (f < cf + hf) return 1;
-    const u = (f - cf - hf) / of;
-    if (u >= 1) return 0;
-    const e = 1 - (1 - u) * (1 - u);                                    // ease-out 张开
-    return 1 - e;
-  };
+  /* ---------- 眨眼计时器（逐实例） ----------
+     时序走 `src/shared/blink.js`；曲线用地球自己的两条 ——
+     smoothstep 闭合 / 二次 ease-out 张开，和太阳那两条贝塞尔不是一个形状，所以显式传进去。
+     ⚠️ 地球**悬停时也照常眨**（太阳那边是钉住不眨），所以 step 的 active 恒为 true。 */
+  const blink = createBlinkLayer({
+    closeF: EARTH.blinkCloseF, holdF: EARTH.blinkHoldF, openF: EARTH.blinkOpenF,
+    min: EARTH.blinkMin, max: EARTH.blinkMax,
+    firstMin: EARTH.blinkFirstMin, firstMax: EARTH.blinkFirstMax,
+    easeIn: smoothstep, easeOut: easeOutQuad,
+    rand,
+  });
 
   let t = 0;
 
@@ -197,9 +195,8 @@ export function createEarthAnim({ rand = Math.random } = {}) {
     t += dt;
 
     /* 权重逼近（与帧率无关） */
-    const kk = 1 - Math.exp(-dt * 10);
-    hoverW += ((hovered ? 1 : 0) - hoverW) * kk;
-    pressW += ((pressed ? 1 : 0) - pressW) * kk;
+    hoverW = approach(hoverW, hovered ? 1 : 0, 10, dt);
+    pressW = approach(pressW, pressed ? 1 : 0, 10, dt);
 
     /* 呼吸：悬停时周期变短（读起来是「兴奋了一点」） */
     const dur = EARTH.breathDur * (1 - (1 - EARTH.hoverBreath) * hoverW);
@@ -218,12 +215,14 @@ export function createEarthAnim({ rand = Math.random } = {}) {
     const bobY = -EARTH.bobAmp * wave + EARTH.hoverLift * hoverW;
 
     /* 点击甩动：一次冲激 + 指数衰减（叶子被震一下）。
+       ⚠️ 地球这里用**同一个 ω 既做衰减又做振荡**（调参时就是这么定的），
+          和太阳那边的阻尼振子不是一套语义 —— 见 `shared/impulse.js` 的说明。
        sin 起手（从 0 开始）—— 起手是 cos 的话第一帧就有位移，会「闪一下」。 */
     let whip = 0;
     if (whipT >= 0) {
       whipT += dt;
       const w = 2 * Math.PI * EARTH.whipHz;
-      whip = EARTH.whipAmp * Math.exp(-EARTH.whipZeta * w * whipT) * Math.sin(w * whipT);
+      whip = dampedImpulse(whipT, EARTH.whipAmp, EARTH.whipZeta * w, w);
       if (whipT >= EARTH.whipDur) whipT = -1;
     }
 
@@ -258,16 +257,10 @@ export function createEarthAnim({ rand = Math.random } = {}) {
       o.op = a * 0.85;
     }
 
-    /* 眨眼 */
-    if (blinkT >= 0) {
-      blinkT += dt;
-      if (blinkT >= BLINK_DUR) { blinkT = -1; scheduleBlink(); }
-    } else {
-      /* 地球和太阳不同：**悬停时也照常眨眼**（太阳那边是钉住不眨）。
-         它没有「被注意到就屏住」的叙事，一直眨反而更活。 */
-      blinkWait -= dt;
-      if (blinkWait <= 0) blinkT = 0;
-    }
+    /* 眨眼：时序推进交给共享层。
+       地球和太阳不同：**悬停时也照常眨眼**（太阳那边是钉住不眨）——
+       它没有「被注意到就屏住」的叙事，一直眨反而更活。所以 active 恒为 true。 */
+    blink.step(dt, true);
 
     return {
       bobY, sway,
@@ -276,8 +269,8 @@ export function createEarthAnim({ rand = Math.random } = {}) {
       leafA,
       cloudX: CLOUD.x + cloudX, cloudY: CLOUD.y + cloudY, cloudS,
       drops: frame,
-      eyes: eyeWeights(blinkValue()),
-      blink: blinkValue(),
+      eyes: eyeWeights(blink.value()),
+      blink: blink.value(),
     };
   }
 
@@ -287,8 +280,8 @@ export function createEarthAnim({ rand = Math.random } = {}) {
     /** 点下去 → 叶子被震一下（把冲激时钟归零） */
     triggerWhip() { whipT = 0; },
     /** 调试：立刻眨一次 */
-    blinkNow() { if (blinkT < 0) blinkT = 0; },
-    blinkValue,
+    blinkNow() { blink.fire(); },
+    blinkValue: blink.value,
     get hoverW() { return hoverW; },
     get pressW() { return pressW; },
   };

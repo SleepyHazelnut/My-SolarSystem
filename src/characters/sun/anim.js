@@ -14,39 +14,22 @@
  * 角度单位注意：`ring.rot` 是**弧度**（从 Rive 搬来），
  * 后加的 `crown.rot` / `flower.rot` / `leaf.rot` 是**度**。index.js 的 apply() 里各自换算。
  * 三个装饰角度都只驱动**包装组**的额外旋转 —— 各层自己的静态落点/角度/缩放在 scene.js 里。
+ *
+ * 与地球共用的运动原语（缓动算法 / 眨眼层 / 冲激）在 `src/shared/` ——
+ * 这一层仍然只有纯逻辑、不碰 DOM，所以照旧能在 Node 里直接 import 做断言。
  */
+import { cubicBezier } from '../../shared/easing.js';
+import { dampedImpulse } from '../../shared/impulse.js';
+import { createBlinkLayer as createBlinkTimer } from '../../shared/blink.js';
 
 export const DEG = 180 / Math.PI;
 const T = (frame) => frame / 60;          // Rive 关键帧按 60fps 折算成秒
 
 /* ============================================================
-   1. 缓动：复刻 Rive 的 CubicEaseInterpolator
+   1. 缓动：**曲线参数在本文件，算法在 `src/shared/easing.js`**
+   ------------------------------------------------------------
+   下面这些数值都是美术口径，只属于太阳，所以不放进共享层。
    ============================================================ */
-function cubicBezier(x1, y1, x2, y2) {
-  const val = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
-  const der = (t, a, b) => 3 * a * (1 - t) * (1 - t) + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t * t;
-  return (x) => {
-    if (x <= 0) return 0;
-    if (x >= 1) return 1;
-    let t = x;
-    for (let i = 0; i < 8; i++) {         // 牛顿迭代
-      const d = der(t, x1, x2);
-      const e = val(t, x1, x2) - x;
-      if (Math.abs(e) < 1e-6) break;
-      if (Math.abs(d) < 1e-6) break;
-      t -= e / d;
-    }
-    if (!(t >= 0 && t <= 1)) {            // 不收敛 → 二分兜底
-      let lo = 0, hi = 1; t = x;
-      for (let i = 0; i < 24; i++) {
-        if (val(t, x1, x2) < x) lo = t; else hi = t;
-        t = (lo + hi) / 2;
-      }
-    }
-    return val(t, y1, y2);
-  };
-}
-
 const EASE = {
   lin: (x) => x,
   io:  cubicBezier(0.42, 0.00, 0.58, 1.00),   // ease-in-out（Rive 默认 cubic）
@@ -126,12 +109,12 @@ export const SPRING = {
 
 /** 按 SPRING 参数逐帧采样成关键帧数组（帧间线性插值，60fps 下误差 < 0.01°） */
 function springTrack({ delay, zeta, A, T, end }) {
-  const wd = 2 * Math.PI / T;
+  const wd = 2 * Math.PI / T;                            // 阻尼频率 ωd
   const k = zeta * wd / Math.sqrt(1 - zeta * zeta);      // ζ·ωn
   const out = [];
   for (let f = 0; f < end; f++) {
     const tau = f - delay;
-    out.push([f, tau <= 0 ? 0 : A * Math.exp(-k * tau) * Math.sin(wd * tau), 'lin']);
+    out.push([f, tau <= 0 ? 0 : dampedImpulse(tau, A, k, wd), 'lin']);
   }
   out.push([end, 0, 'lin']);   // 收尾：残余 < 0.06°，钉到 0，出口切走时不会「抖」一下
   return out;
@@ -744,47 +727,18 @@ export const BLINK = {
 };
 BLINK.dur = (BLINK.closeF + BLINK.holdF + BLINK.openF) / 60;
 
+/**
+ * 太阳这边的眨眼层 = **共享时序**（`src/shared/blink.js`）+ **太阳专属的写回**。
+ *
+ * 写回这层不能进共享：它知道太阳有三个眼层（eyeDot / eyeClosed 交叉淡入），
+ * 还要往 `sun.y` 叠一层微沉。曲线参数也留在本文件（`EASE.ei` / `EASE.eo`）。
+ */
 function createBlinkLayer() {
-  let t = -1;        // 当前这次眨眼已经进行了多少秒；-1 = 没在眨
-  let wait = BLINK.firstMin + Math.random() * (BLINK.firstMax - BLINK.firstMin);
-
-  /**
-   * 立刻眨一次（2026-09-30，给「转场眨眼」用：进入 Hover 时眨一下 = 注意到你了）。
-   * ⚠️ 已经在眨的那一次**不受影响** —— 直接把 t 置 0 会把它截断成半次。
-   */
-  function fire() { if (t < 0) t = 0; }
-
-  /** 排下一次眨眼：把「起点到起点」的间隔换算成「本次结束之后的停顿」 */
-  function schedule() {
-    const span = Math.random() < BLINK.double
-      ? BLINK.doubleMin + Math.random() * (BLINK.doubleMax - BLINK.doubleMin)
-      : BLINK.min + Math.random() * (BLINK.max - BLINK.min);
-    wait = Math.max(span - BLINK.dur, 0);
-  }
-
-  /** 闭眼量 0~1（0 = 完全睁开） */
-  function value() {
-    if (t < 0) return 0;
-    const f = t * 60;                                     // 已进行的帧数
-    if (f < BLINK.closeF) return EASE.ei(f / BLINK.closeF);
-    if (f < BLINK.closeF + BLINK.holdF) return 1;         // 真正闭上，保持
-    const u = (f - BLINK.closeF - BLINK.holdF) / BLINK.openF;
-    return u >= 1 ? 0 : 1 - EASE.eo(u);
-  }
-
-  function step(dt, active) {
-    if (t >= 0) {
-      t += dt;
-      /* ⚠️ 连眨的概率判定放在**每次眨眼结束时**，不是放在调度时 ——
-         这样连眨的第二下还有机会再触发第三下（0.15² = 2.25%，可以接受）。 */
-      if (t >= BLINK.dur) { t = -1; schedule(); }
-    } else if (active) {
-      /* active = false（悬停且 inHover=false）时**冻结倒计时**，不是清零：
-         移开指针后从原来的进度继续，不会「一移开就立刻眨」。 */
-      wait -= dt;
-      if (wait <= 0) t = 0;
-    }
-  }
+  const blink = createBlinkTimer({
+    ...BLINK,
+    easeIn: EASE.ei,       // 闭合 5 帧
+    easeOut: EASE.eo,      // 张开 3 帧
+  });
 
   /**
    * 每帧把闭眼量叠到 out 上。
@@ -792,8 +746,8 @@ function createBlinkLayer() {
    * @param active 是否允许**发起**新的眨眼（已经在眨的那次不受影响，会正常播完）
    */
   function write(dt, out, open, active) {
-    step(dt, active);
-    const b = value() * open;
+    blink.step(dt, active);
+    const b = blink.value() * open;
     if (b <= 0) return;
     out['eyeClosed.op'] = Math.max(out['eyeClosed.op'], b);
     out['eyeDot.op'] = Math.min(out['eyeDot.op'], 1 - b);
@@ -801,7 +755,7 @@ function createBlinkLayer() {
     if (BLINK.sink) out['sun.y'] += b * BLINK.sink;
   }
 
-  return { step, value, write, fire };
+  return { step: blink.step, value: blink.value, fire: blink.fire, write };
 }
 
 /**
