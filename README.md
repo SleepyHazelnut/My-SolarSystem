@@ -32,6 +32,7 @@ npm run preview    # 本地预览 dist/
 | `src/characters/earth/index.js` | 地球的挂载与逐帧驱动：写 SVG 属性、绑定输入、逐帧时钟。**不复用**太阳的状态机 |
 | `src/characters/earth/anim.js` | 地球的几何落点、动画参数与每帧的数值计算（呼吸 / 摆动 / 三态眨眼 / 云雨 / 叶的冲激）。纯逻辑，不碰 DOM |
 | `src/characters/earth/scene.js` | 地球的 SVG 图层结构，以及素材的导入 |
+| `src/shared/` | 两个角色共用的**运动原语**：`easing.js`（三次贝塞尔 / smoothstep / easeOutQuad）、`approach.js`（指数逼近）、`impulse.js`（阻尼冲激）、`clock.js`（dt 钳制 / fps 统计）、`input.js`（指针 → hover/pressed）、`blink.js`（眨眼计时器 + 三态闭眼量） |
 | `src/assets/sun/` | 身体与装饰素材，9 张 PNG（`sun_base` / `ring_outer` / `crown` / `flower` / `leaf` / `spark1~4`） |
 | `src/assets/face/` | 五官（表情）素材，5 张 PNG（`cat_face` / `eye_dot` / `eye_closed` / `mouth_flat` / `mouth_round`） |
 | `src/assets/earth/` | 地球素材：`earth_base`（球体，无五官）/ `eye_open`·`eye_half`·`eye_closed`（三态眼 + 嘴）/ `sprout_stem`（茎）·`sprout_leaf_l`（左叶）·`sprout_leaf_r`（右叶）/ `cloud`（云，在芽头上降雨） |
@@ -57,7 +58,11 @@ npm run preview    # 本地预览 dist/
   `sparkGlow` 星光 glow（这一项在 `index.js` / `scene.js` 里生效）、`drift` 低频漂移（打破 3 秒锁相）、
   `decorPhase` 向日葵花与叶的相位漂移。
 - `src/characters/sun/anim.js` 是**手改的唯一源**，没有生成管线；改动画直接改它。
-- 地球（`src/characters/earth/`，三层同太阳：`index.js` / `anim.js` / `scene.js`）是**独立的一套**，和太阳不共享代码。
+- 地球（`src/characters/earth/`，三层同太阳：`index.js` / `anim.js` / `scene.js`）的**动画内容是独立的一套** ——
+  它不吃太阳的关键帧与状态机，而是程序化正弦。但两边**共用 `src/shared/` 的运动原语**（缓动 / 眨眼计时器 /
+  指数逼近 / 阻尼冲激 / 时钟 / 输入接线），这些原语是纯函数、参数由调用方给，所以共享不改变各自的数值。
+  ⚠️ 共享的 `blink.js` 与 `impulse.js` 只统一**结构**，不统一**语义**：太阳的冲激用阻尼频率 `ωd` 振荡、
+  `ζ·ωn` 衰减，地球用同一个 `ω` 既振荡又衰减，两边的 `ω` / `decay` 口径不同，别按名字直接对调参数。
   它的五官是从合成图 `星球素材/地球/地球.png` 里
   **抠出来**的（底图做过最近邻修补），「半闭 / 闭」两个眼态由眼睛纵向压缩生成。
   ⚠️ 三态眼与球体共用同一个变换 `EARTH_T` —— 各写各的会在眨眼时错位；
