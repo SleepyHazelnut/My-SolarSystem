@@ -33,6 +33,7 @@
  *    **不能出现反引号**（会把字符串提前截断 → rollup 报 "Expected a semicolon"），
  *    也**不能出现裸的 `${`**（会被当插值求值）。只有 `${IMG.xxx}` 是有意为之。
  *    2026-09-30 就踩过一次：注释里写了 `clip.rot`，`npm run build` 直接挂。
+ *    所以改完**必跑 `npm run build`** —— 这类问题只在构建时暴露。
  */
 import cat_face from '../../assets/face/cat_face.png';
 import crown from '../../assets/sun/crown.png';

@@ -2,7 +2,7 @@
  * 太阳角色：SVG + GSAP 版。
  *
  * 用法：
- *   const sun = mountSun(document.getElementById('sun'), { debug: fn });
+ *   const sun = mountSun(document.getElementById('sun'));
  *   sun.destroy();   // 拆 ticker / 监听 / 补间，并把注入的 SVG 清掉
  *
  * 职责划分：
@@ -19,7 +19,7 @@
 import gsap from 'gsap';
 import { SVG_SCENE } from './scene.js';
 import { DEG, createMixer, FX, RING_TILT, ringTiltK } from './anim.js';
-import { clampDt, createFpsCounter } from '../../shared/clock.js';
+import { clampDt } from '../../shared/clock.js';
 import { approach } from '../../shared/approach.js';
 import { bindPointerInput } from '../../shared/input.js';
 
@@ -27,7 +27,7 @@ import { bindPointerInput } from '../../shared/input.js';
    视线跟随总开关（2026-09-30 暂时关掉）
    ------------------------------------------------------------
    关掉后眼睛不再跟指针，只保留呼吸 / 眨眼 / 点击点头 / 装饰摆动。
-   ⚠️ **代码全部保留** —— 补间、监听、三个参数、debug 面板都还在，
+   ⚠️ **代码全部保留** —— 补间、监听、三个参数都还在，
    只是把写进 #look 的位移乘 0。改回 `true` 即可完全复原，无需重写。
    也可以在挂载时逐实例覆盖：mountSun(root, { look: true })。
    ============================================================ */
@@ -56,7 +56,7 @@ function introEase(u) {
   return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
 }
 
-export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow, intro = true } = {}) {
+export function mountSun(root, { look = LOOK_FOLLOW, glow = FX.sparkGlow, intro = true } = {}) {
   if (!root) throw new Error('mountSun: 缺少挂载容器');
 
   root.innerHTML = SVG_SCENE;
@@ -270,14 +270,13 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
   /* ============================================================
      7. 主循环
         ============================================================ */
-  const fpsC = createFpsCounter();
 
   /* 入场进度（秒）。`prefers-reduced-motion: reduce` 时按「已播完」处理，直接是终态 */
   const REDUCED = typeof matchMedia === 'function' &&
     matchMedia('(prefers-reduced-motion: reduce)').matches;
   let introT = (intro && !REDUCED) ? 0 : INTRO.dur;
 
-  function tick(time, deltaMs) {
+  function tick(_time, deltaMs) {
     const dt = clampDt(deltaMs);
     if (introT < INTRO.dur) introT += dt;
 
@@ -303,9 +302,6 @@ export function mountSun(root, { debug, look = LOOK_FOLLOW, glow = FX.sparkGlow,
     lookToX(lx * gaze); lookToY(ly * gaze);
 
     apply(v);
-
-    /* fps：每 500 ms 统计一次，顺手喂给 ?debug=1 的面板 */
-    if (fpsC.tick(time)) debug?.({ ready: true, lx, ly, sx, sy, fps: fpsC.fps });
   }
   gsap.ticker.add(tick);
 
