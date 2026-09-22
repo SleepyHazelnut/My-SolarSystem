@@ -20,6 +20,10 @@
  * 五官图层是从合成图原样抠的（与 `earth_base` 逐像素对齐），所以与 `earth_base` **共用同一套
  * 变换**（`EARTH_T`）—— 各写各的会在眨眼时错位。小芽、云、雨相反：都是**单独摆上去的**，
  * 坐标一律是 viewBox 坐标（不是素材坐标）。
+ *
+ * 「开心」表情是**第三类**：素材本身来自 `星球素材/表情/`（跨星球共用的 1536 独立脸），
+ * 但**不是整张套上去** —— 按部件抠出来、逐件补角后拼回 **2048 画布**（`_draft/_face-build.py`），
+ * 所以它和三态眼**共用 `EARTH_T`**。见下面「开心表情」那段。
  */
 import { smoothstep, easeOutQuad } from '../../shared/easing.js';
 import { dampedImpulse } from '../../shared/impulse.js';
@@ -41,6 +45,28 @@ export const TOP_Y = CY - SRC.r * S;    // 球体顶点 y ≈ 280（定位参照
 
 export const EARTH_T = `translate(${CX} ${CY}) scale(${S.toFixed(6)}) translate(${-SRC.cx} ${-SRC.cy})`;
 
+/* 脸的中心（**素材坐标**）—— 表情倾斜的支点，只在本文件里换算出 `FACE_C`。
+   取 `face_happy.png` 内容 bbox 中心 (1180, 1154.5)（眼 + 嘴的外接框，实测）。
+   支点必须落在**脸自己身上**：倾斜才是纯转动。若图省事用球心，
+   脸在球心右下 43 px 处 → 转 7° 会额外把脸平推 5 px，把下面「m」的纵向搅乱。
+   ⚠️ 不 export：外部要的是换算后的 viewBox 坐标 `FACE_C`，素材坐标没有别的用处。
+      （`_draft/_tilt-sweep.py` 会按文本正则抠这里的数字，改格式要同步那个正则。） */
+const FACE_SRC = { cx: 1180, cy: 1154.5 };
+export const FACE_C = {
+  x: CX + S * (FACE_SRC.cx - SRC.cx),
+  y: CY + S * (FACE_SRC.cy - SRC.cy),
+};
+
+/* ---- 「开心」表情 ----
+   素材 `src/assets/earth/face_happy.png` 是**自己拼的**（`_draft/_face-build.py`）：
+   眼睛 ← `星球素材/表情/微笑.png` 的 ^^ 弯月眼，嘴 ← `星球素材/表情/开心.png` 的张嘴，
+   两个部件都按 `eye_open.png` 各自的实测中心缩放、落回 **2048 画布**。
+   所以它和球体、三态眼**共用 `EARTH_T`** —— 眼睛 / 嘴的位置与原来逐像素对齐，
+   切表情时不会「眼睛动一下」。见 NOTES「点击：变开心」。
+
+   ⚠️ 别改回「整张 1536 的表情素材 + 单独的 FACE_T」：那套只能把**双眼中点**对齐，
+   眼距（328.5 vs 492·k）和眼高都对不上，切过去眼睛会明显地动 —— 用户原话「前后眼睛不一致不行」。 */
+
 /* 小芽：**三份**素材（同一 2048 画布导出，所以共用一套 translate/scale）。
    动画口径：**茎不动** —— 只吃静态倾角 `rot`，一次写完就不再改；两片叶吃**同一份** transform，
    绕**同一个圆心**、同一个角度摆，所以中间永远不会裂。
@@ -51,15 +77,21 @@ export const EARTH_T = `translate(${CX} ${CY}) scale(${S.toFixed(6)}) translate(
    rot：静态倾角（度）—— 三份都要吃，否则叶和茎在静态位就对不上。
    x/y 与 pivot 是**绑死**的：渲染结果是 (x,y) + k·R(rot)·(p − pivot)，单独改 pivot 会让整株平移。
    换圆心时按 (x,y) += k·R(rot)·(pivot′ − pivot) 补偿（调参页的「圆心移到茎顶」按钮就是干这个的）。
-   layer：1 = 芽画在球体**之上**，0 = 沉到球体下面（由 DOM 顺序实现）。 */
-export const SPROUT = { k: 0.045, x: 274.833, y: 272.703, pivotX: 1080, pivotY: 1100, rot: 29.5, layer: 1 };
+   layer：1 = 芽画在球体**之上**，0 = 沉到球体下面（由 DOM 顺序实现）。
+   ⚠️ **x 是绝对落点，球心一动它必须跟着动**：芽长在球的**右上方**
+   （设计稿 `星球素材/地球/地球设定.png` 里芽基离球心约 **40% 半径**），不是正中间。
+   2026-10-05 加宽画布时 `CX` 220→280、这里没跟着挪 → 芽相对球左移 60 px、
+   看起来跑到正中间了 → x 274.833 → **334.833**（同理 `CLOUD.x` 284 → 344）。 */
+export const SPROUT = { k: 0.045, x: 334.833, y: 272.703, pivotX: 1080, pivotY: 1100, rot: 29.5, layer: 1 };
 
 /* 茎与两片叶的变换前缀 —— 圆心在**素材坐标**，所以要先 translate(-pivot)。
    茎只用它一次（静态），两片叶每帧都用。 */
 export const SPROUT_PIVOT_T = `translate(${-SPROUT.pivotX} ${-SPROUT.pivotY}) `;
 
-/* 云：素材 bbox 中心 ≈(1025.5,1040.5) */
-export const CLOUD = { k: 0.062, x: 284, y: 170, cx: 1025.5, cy: 1040.5 };
+/* 云：素材 bbox 中心 ≈(1025.5,1040.5)。
+   ⚠️ x 与 `SPROUT.x` 同理 —— 云要**落在芽的正上方**（雨落在芽上），
+   所以它也跟着球心一起动：284 → **344**（比芽右 9 px，和加宽前一致）。 */
+export const CLOUD = { k: 0.062, x: 344, y: 170, cx: 1025.5, cy: 1040.5 };
 
 /* 云的运动：**绕地球转一圈** —— 一条闭合的三段路径，不是曲线秀：
 
@@ -72,9 +104,9 @@ export const CLOUD = { k: 0.062, x: 284, y: 170, cx: 1025.5, cy: 1040.5 };
    真正看得见「在背后」的地方是回程弧擦过球体左上那一小段。
 
    路径**闭合**：起点 = 终点 = 云的静止位，所以出门 / 回家天然无缝，不存在「归位那一下」。
-   三段接缝处**切线连续**（进场弧到环上是竖直的、回程弧离开环时也是竖直的）→ 全程没有折角。
+   三段接缝处**切线连续**（出门弧到环上是竖直的、回程弧离开环时也是竖直的）→ 全程没有折角。
 
-   **快慢**由一条速度剖面给（见 speedAnchors）：弯前减速、直道加速、回程再慢一档。
+   **快慢**由一条**从曲率解出**的速度剖面给（见 `R_REF` 那一段）：弯里慢、直道快。
    时间轴 = 弧长 ÷ 速度的累计（`tau`），运行时 `u → easeDist(u)`（只管起停）→ 查 `tau` 表反查。
 
    回程弧**故意往地球那边鼓**：最近处离球心 128 px（球半径 130）→ 云会被球体左上方轮廓
@@ -85,10 +117,19 @@ export const ORBIT = {
   dur: 4.4,              // 绕完一圈（s）
   ease: 0.14,            // 起停各占总时长的比例（梯形速度曲线）
 
-  /* 五官跟随：云走开时整张脸（眼 + 嘴是**同一张图**，只能整层平移）朝它偏一点，最多 8 px。
-     归一化用**相对静止位的位移**（不含静止漂移）→ 静止位恒为 0，不会「脸一直歪着」。 */
-  eyeMax: 8,             // 最大位移（px）
-  eyeDown: 0.55,         // 纵向分量 / 横向分量（云下潜时眼睛也往下看一点）
+  /* ---- 环的「不规整」----
+     一个**正椭圆**读起来就是「在跑轨道」（用户口径：「绕圈太机械，像在跑轨道」）。
+     这里加两项扰动，基函数都取 `sin³θ` —— 它在 θ = 0 / π 上**值、一阶导、二阶导全为 0**
+     → 接缝处的位置 / 切线 / **曲率**都不动，上面那套 G2 匹配照旧成立，
+     但环本身不再是椭圆。⚠️ 别用 `sin²θ`（二阶导在端点不为 0）→ 接缝曲率会漂，
+     速度剖面跟着漂，`_cloud-trace.mjs` 的「接缝 Δv」会变差。
+
+       · `wobRX` / `wobRY`：半径随角度起伏。两个基分别是 `sin³θ`（关于 θ=π/2 对称）
+         与 `sin³θ·cosθ`（反对称，峰值 0.325）→ 合起来能同时给出「鼓」和「偏」。
+       · `ringTilt`：环平面在中途逐渐倾斜（度）—— 环底不再是正下方，整条路径左右不对称。 */
+  wobRX: [0.09, 0.14],
+  wobRY: [-0.10, 0.12],
+  ringTilt: 14,
 
   /* 姿态：只在**横向速度**上给一点后仰 + 拉伸。
      不跟路径切线 —— 环是扁的，切角会从竖直一路甩到水平（±90°），云会翻跟头。
@@ -105,47 +146,88 @@ export const ORBIT = {
   rainOut: [0.015, 0.075],
   rainIn: [0.88, 0.97],
 
+  /* ---- 起跳弹 / 落地弹（用户 2026-10-06 第二轮）----
+
+     口径：**弹跳与飞行重叠，不是排队**（第一版做成了「弹完再走 / 走完再弹」，被否）。
+
+         点 ──┬──► 起跳弹（蹲 → 蹬 → 余韵在路途中晃完）
+              └──► 出行 ─── 绕一圈 ─── 尾段**蓄力**（越近家压得越紧）──► 到家**立刻**弹一下就结束
+
+     ⚠️ **弹跳不进 `dur`**：`dur` 仍是纯环绕 4.4 s（`HAPPY.swingDur` 对齐的是它）；
+     起跳弹叠在飞行**头上**、蓄力叠在飞行**尾上**、落地弹叠在飞行**尾后** ——
+     总时长 = `dur + landDur`。
+
+     · **起跳** `bounceWave` = `−e^(−ζωt)·sin(ωt)`：sin 起手（t=0 位移 0，触发那帧不闪），
+       首半波蹲（压扁变宽）、次半波蹬（拉高变窄），尾巴在路途中晃完。
+     · **落地** 是**蓄力 + 释放**两件事，不是「到家再弹一下」：
+       · `charge`：最后 `landCharge` 秒用 smoothstep 把云**渐进压扁**（蓄力，压到 `landAmp`）；
+       · `release`：到家那一帧从**这个压扁量**起步弹出去，过冲一下（拉高）再衰减回 0。
+       ⚠️ 释放必须 **cos 起手** —— sin 起手在 t=0 是 0，会与蓄力末端的压扁量**断开**
+       （到家那一帧云会「啪」地弹回原尺寸，正是用户否掉的「走完再弹」那个断点）。
+
+     ⚠️ `amp` 是**幅度不是实际峰值**：sin 起手的峰值 = `amp · e^(−πζ/2)`；
+        ζ 越小 → 第二个半波（蹬起）越明显（比值 `e^(−πζ)`）。
+     ⚠️ 尾巴用 `1 − smoothstep((t/dur − 0.55)/0.45)` **收掉**：单靠阻尼衰减，到 `dur` 时
+        还留 2~3%（云有 ~74 px 高 → 交接处会看到 1.5 px 的跳）。 */
+  /* `popHop` / `landHop` 是**纵向位移**（px，正 = 往下）：蹲下去 / 蓄力压下去为正，
+     蹬起来 / 弹起来为负。⚠️ 实际位移 = `hop × 波形值`，而阻尼让首半波只剩 `e^(−πζ/2)`
+     （起跳 0.71、落地 1.0 因为是 cos 起手），所以给的值要比想看到的位移**大**一截。 */
+  popAmp: 0.26, popHz: 3.5, popZeta: 0.22, popDur: 0.55, popHop: 16,
+  landAmp: 0.16, landHz: 4.0, landZeta: 0.28, landDur: 0.45, landHop: 9,
+  landCharge: 0.45,        // 蓄力时长（s）—— 落在 `dur` 的最后一段里，不是额外加的
+
   /* 静止漂移：两组**不成倍数**的周期 → 合成运动永不重复（所以不需要循环点） */
   driftX: [[9.3, 6.5], [14.7, 3.0]],   // [周期(s), 幅度(px)]
   driftY: [7.1, 3.5],
 };
 
 /* 轨道路径（闭合，采样成「时间 → 点」的表）
-   ① 进场弧：二次贝塞尔，控制点在环右点的**正上方** → 到环上时切线竖直。
-             控制点的高度同时决定**接缝处的曲率**：椭圆长轴端的曲率半径只有 ry²/rx ≈ 49 px
-             （扁环的两个侧端就是两个急弯）。控制点越高、进场弧末端越平 ——
-             放在 (485,170) 时末端是 573 px，接缝处曲率突变 11.7 倍，全速冲进去读作「甩」。
+   ① 出门弧：三次贝塞尔。C2 在环右点的**正上方** → 到环上时切线竖直；
+             C1 是**自由的**，用来定起手方向 —— 往右上拉，云先平移出去再俯冲。
+             ⚠️ C1 不能省成二次贝塞尔：二次的控制点必须同时管「起手方向」和「末端曲率」，
+             而末端曲率被 G2 钉死（见下），起手方向就跟着变成 52° 朝下 ——
+             云还没移出芽的横向范围就降到芽的高度，从芽上面扎过去（二次版最坏盖住 17.7%）。
    ② 环    ：椭圆 θ 从 0 到 π（**顺时针**过底端）
    ③ 回程弧：三次贝塞尔，C1 在环左点正上方（离环时切线竖直）、
              C2 往球心那边拉（决定下潜多深 → 决定被挡掉多少）
 
    起点在球**右上**、终点在球**左上** → 环绕必须**顺时针**（经底端）：逆时针会先撞上头顶的小芽。 */
-const P_HOME = { x: CLOUD.x, y: CLOUD.y };        // (284,170) 云的静止位
-const P_RING_R = { x: CX + ORBIT.rx, y: CY };     // (485,410) 环最右点 = 进场弧终点
+const P_HOME = { x: CLOUD.x, y: CLOUD.y };        // (344,170) 云的静止位（芽的正上方）
+const P_RING_R = { x: CX + ORBIT.rx, y: CY };     // (485,410) 环最右点 = 出门弧终点
 const P_RING_L = { x: CX - ORBIT.rx, y: CY };     // ( 75,410) 环最左点 = 回程弧起点
 const RET_C2 = { x: 330, y: 320 };                // 回程弧的「往球那边拉」控制点（决定下潜多深）
 
 /* ---- 接缝曲率匹配（G2）----
    为什么必须匹配：速度剖面是 `w ∝ √R`（见下），接缝处 R 一断，
    ① `w` 跟着跳 → 速度有个折角（读作「顿一下」）② 横向加速度 a = v²/R 也跳。
-   所以两条弧的控制点高度**不是手挑的，是解出来的** —— 让弧的端点曲率恰好等于椭圆
+   所以两条弧的**末端**控制点高度不是手挑的，是解出来的 —— 让弧的端点曲率恰好等于椭圆
    长轴端的曲率 `SEAM_R = ry²/rx`（扁环的两个侧端）。
-     · 进场弧（二次贝塞尔，控制点在环右点正上方 d）：末端 R = 2d²/dx
-       → d = √(SEAM_R·dx/2)，dx = 静止位到环右点的水平距离
+     · 出门弧（三次贝塞尔，C2 在环右点正上方 d）：末端 R = 3d²/(2·Δx)
+       → d = √(2·SEAM_R·Δx/3)，Δx = 环右点 x − C1.x
      · 回程弧（三次贝塞尔，C1 在环左点正上方 d'）：起端 R = 3d'²/(2·Δx)
        → d' = √(2·SEAM_R·Δx/3)，Δx = C2.x − 环左点 x
-   代入 d ≈ 70.0、d' ≈ 91.1。（手挑 100/100 时接缝处 R 从 99.5 掉到 48.8。） */
-const SEAM_R = ORBIT.ry ** 2 / ORBIT.rx;
-const ENTRY_C = { x: P_RING_R.x, y: CY - Math.sqrt(SEAM_R * (P_RING_R.x - P_HOME.x) / 2) };
-const RET_C1 = { x: P_RING_L.x, y: CY - Math.sqrt(SEAM_R * 2 * (RET_C2.x - P_RING_L.x) / 3) };
+   代入 d ≈ 38.3、d' ≈ 91.1。（手挑 100/100 时接缝处 R 从 99.5 掉到 48.8。）
 
-/** 云在回程里最深能下潜到球心下方多少 px —— 眼睛跟随的纵向归一化基准 */
-const DIP_Y = CY + ORBIT.ry - P_HOME.y;
+   ⚠️ 环被 `sin³θ` 扰动了（见 ORBIT 的 `wobRX/wobRY/ringTilt`），但**这里不用改**：
+   `sin³θ` 在端点的二阶导也是 0 → 环在接缝处的曲率仍是椭圆长轴端的 `ry²/rx`（差 O(ε²) ≈ 0.4%）。 */
+const SEAM_R = ORBIT.ry ** 2 / ORBIT.rx;
+/* 出门弧的**起手**控制点（自由量，用来定起手方向）。
+   为什么必须自由：静止位 (344,170) 在**芽的正上方**，而环右点 (485,410) 要往下 240 px、
+   只往右 141 px —— 二次贝塞尔的控制点被 G2 钉在环右点正上方，起手切线就只能是 52° 朝下，
+   云还没移出芽的横向范围就降到芽的高度 → 从芽上面扎过去（面积口径最坏 17.7%，实测能看到
+   云的下缘擦过右叶尖）。把它拆成三次、C1 往右拉平，起手切线变成 ~3° 朝下（几乎水平），
+   云先平移出去再俯冲 → 离芽最近 52.6 px，**61 个漂移相位全部 0% 覆盖**。
+   代价：曲率在后半段爬得更陡，进环前那一下减速比二次版利（出门弧段逐帧 Δv
+   7.17 → 15.37 px/s @240fps）。这是**有意的取舍** —— 换来的是不擦芽。
+   改这里要同时看：`_cloud-trace.mjs` 的「出门弧段 Δv」与「前层盖住小芽」。 */
+const ENTRY_C1 = { x: 440, y: 175 };
+const ENTRY_C2 = { x: P_RING_R.x, y: CY - Math.sqrt(SEAM_R * 2 * (P_RING_R.x - ENTRY_C1.x) / 3) };
+const RET_C1 = { x: P_RING_L.x, y: CY - Math.sqrt(SEAM_R * 2 * (RET_C2.x - P_RING_L.x) / 3) };
 
 /** 路径的控制点（**只给探针用**：算接缝曲率、画对比图）。
  *  这些数字的唯一来源是本文件 —— 探针要引用而不是自己抄一遍，
- *  否则改了 `ENTRY_C` 而探针还按旧值报假数据。 */
-export const ORBIT_CTRL = { P_HOME, P_RING_R, P_RING_L, ENTRY_C, RET_C1, RET_C2 };
+ *  否则改了 `ENTRY_C2` 而探针还按旧值报假数据。 */
+export const ORBIT_CTRL = { P_HOME, P_RING_R, P_RING_L, ENTRY_C1, ENTRY_C2, RET_C1, RET_C2 };
 
 /* 速度剖面：**从曲率解出来**（不是手调的锚点表）。
    原则：让**横向加速度 a = v²/R 沿路径大致恒定** —— 等价于 `v ∝ √R`。
@@ -161,6 +243,13 @@ const W_LO = 0.55;       // 权重下限（最急的弯封顶）
 const W_HI = 1.45;       // 权重上限（长直道封顶）
 const NARR_S = [0.78, 0.99], NARR_K = 0.15;   // 叙事减速：区间 + 压多少
 
+/* 速度权重沿**弧长**的最大变化率（每 px）。见 `ORBIT_PATH` 里「切向加速度限制」那一段 ——
+   单靠曲率映射会让出门弧末端「砸」一下（减速 0.21 s、再升回来 0.63 s，不对称的 V 谷）。
+   0.008 是扫出来的甜点：逐帧 Δv 峰值 15.37 → 6.89 px/s、5 帧平滑后的切向加速度
+   3455 → 1099 px/s²（3.1×），而横向加速度 max/均值只从 1.29 涨到 1.36。
+   再收紧（0.005）切向只再降 23%，横向却要涨到 1.58 —— 不值。 */
+const W_SLOPE = 0.008;
+
 /** 归一化 x → [0,1] 再走 smoothstep。
  *  `shared/easing.js` 的 `smoothstep` **不做钳位**（它是曲线原语，不是区间映射），
  *  所以越界要在这里夹掉。
@@ -174,6 +263,32 @@ function bump(x, a, b) {
   return x <= m ? ramp(a, m, x) : 1 - ramp(m, b, x);
 }
 
+/** 收尾窗：后 45% 线性收到 0 —— 保证交接处**精确**归 0，不留阻尼尾巴。
+ *  ⚠️ `shared/easing.js` 的 `smoothstep` **只收一个参数**（曲线原语，不做区间映射）。
+ *    写成 `smoothstep(0.55, 1, x)` 后两个参数会被**静默忽略** → 得到常数 0.575
+ *    → 弹跳幅度只剩 42%（踩过：15% 的蹲变成 6.5%，看着像「没弹」）。区间映射要自己夹。 */
+const tailOff = (t, dur) => 1 - smoothstep(Math.min(1, Math.max(0, (t / dur - 0.55) / 0.45)));
+
+/** **起跳弹**波形（归一化）：`−e^(−ζωt)·sin(ωt)`
+ *  —— sin 起手（t = 0 位移为 0，触发那一帧不闪）→ 蹲（负 = 压扁变宽）→ 蹬（正 = 拉高变窄）→ 衰减。
+ *  ⚠️ 峰值**不是** 1 而是 `e^(−πζ/2)`（阻尼在第一个 1/4 周期已经吃掉一部分）。 */
+function bounceWave(t, dur, hz, zeta) {
+  if (t <= 0) return 0;
+  const w = 2 * Math.PI * hz;
+  return dampedImpulse(t, -1, zeta * w, w) * tailOff(t, dur);
+}
+
+/** **落地「释放」**波形（归一化）：`e^(−ζωt)·cos(ωt)`
+ *  —— ⚠️ **cos 起手**（t = 0 值为 **1**）：它要接着蓄力末端那个压扁量往下走，
+ *     从 1 开始才连续；用 `bounceWave` 那种 sin 起手会在到家那一帧**啪**地弹回原尺寸
+ *     （正是用户否掉的「走完再弹」）。
+ *     1 → 0 → 过冲到 `−e^(−πζ)`（= 拉高变窄）→ 衰减回 0 = 「弹一下就结束」。 */
+function releaseWave(t, dur, hz, zeta) {
+  if (t < 0) return 1;
+  const w = 2 * Math.PI * hz;
+  return Math.exp(-zeta * w * t) * Math.cos(w * t) * tailOff(t, dur);
+}
+
 /** 采样好的闭合路径。
  *  `xs/ys` 点、`s` 归一化弧长、`w` 速度权重（由曲率解出）、
  *  `tau` 归一化**时间**（= 弧长 ÷ 速度的累计）、`uBehind` 切到球后那一瞬的时间比例。 */
@@ -184,17 +299,25 @@ export const ORBIT_PATH = (() => {
     if (n && Math.abs(xs[n - 1] - x) < 1e-9 && Math.abs(ys[n - 1] - y) < 1e-9) return;
     xs.push(x); ys.push(y);
   };
-  /* ① 进场弧：P_HOME → ENTRY_C → P_RING_R */
+  /* ① 出门弧：P_HOME → ENTRY_C1 → ENTRY_C2 → P_RING_R（三次贝塞尔） */
   for (let i = 0; i <= 120; i++) {
     const t = i / 120, m = 1 - t;
-    push(m * m * P_HOME.x + 2 * m * t * ENTRY_C.x + t * t * P_RING_R.x,
-         m * m * P_HOME.y + 2 * m * t * ENTRY_C.y + t * t * P_RING_R.y);
+    push(m * m * m * P_HOME.x + 3 * m * m * t * ENTRY_C1.x + 3 * m * t * t * ENTRY_C2.x + t * t * t * P_RING_R.x,
+         m * m * m * P_HOME.y + 3 * m * m * t * ENTRY_C1.y + 3 * m * t * t * ENTRY_C2.y + t * t * t * P_RING_R.y);
   }
-  const iEntryEnd = xs.length - 1;     // 进场弧的终点 = 环的起点
-  /* ② 环：θ 0 → π（顺时针过底端）。起点与进场弧的终点重复，跳过 */
+  const iEntryEnd = xs.length - 1;     // 出门弧的终点 = 环的起点
+  /* ② 环：θ 0 → π（顺时针过底端）。起点与出门弧的终点重复，跳过。
+        形状 = 椭圆 + 两项 `sin³θ` 扰动（半径起伏 + 平面倾斜），见 ORBIT 里那段。 */
+  const tiltK = ORBIT.ringTilt * Math.PI / 180;
   for (let i = 1; i <= 180; i++) {
     const th = Math.PI * i / 180;
-    push(CX + ORBIT.rx * Math.cos(th), CY + ORBIT.ry * Math.sin(th));
+    const st = Math.sin(th), s3 = st * st * st;
+    const wr = 1 + ORBIT.wobRX[0] * s3 + ORBIT.wobRX[1] * s3 * Math.cos(th);
+    const hr = 1 + ORBIT.wobRY[0] * s3 + ORBIT.wobRY[1] * s3 * Math.cos(th);
+    const ux = ORBIT.rx * wr * Math.cos(th);
+    const uy = ORBIT.ry * hr * st;
+    const a = tiltK * s3, ca = Math.cos(a), sa = Math.sin(a);
+    push(CX + ux * ca - uy * sa, CY + ux * sa + uy * ca);
   }
   const iRingEnd = xs.length - 1;      // 环的终点 = 回程弧的起点
   /* ③ 回程弧：P_RING_L → C1 → C2 → P_HOME */
@@ -240,6 +363,33 @@ export const ORBIT_PATH = (() => {
     w = nw;
   }
 
+  /* ---- 切向加速度限制（双向 look-ahead）----
+     为什么需要：`w` 是**逐点**从曲率算的，而「出门弧末端」的曲率收得比椭圆快得多 ——
+     三次贝塞尔端点 `dκ/ds ≠ 0`（推导见 ENTRY_C1 那段），椭圆长轴端却 `dκ/dθ = 0`。
+     于是速度在接缝处**砸下去**：实测减速只用 0.21 s（419 → 168 px/s），
+     而环上再升回来要用 0.63 s —— 不对称的 V 谷，读作「顿一下」。一圈两次（左接缝同理）。
+
+     做法：按**弧长**限住 `|dw/ds|`，从两端往中间扫两遍（反向管减速、正向管加速）。
+     减速因此必须**提前**开始、加速必须**延后**结束，V 谷变成对称的缓变。
+     代价：弯道附近速度略抬高 → 横向加速度 `a_n = v²/R` 略增（探针报 max/均值）。
+     这是**有意的取舍**：切向的折角（速度突变）比横向的略高刺眼得多。 */
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = n - 2; i >= 0; i--) {          // 反向：减速能力
+      const cap = w[i + 1] + W_SLOPE * (s[i + 1] - s[i]) * len;
+      if (w[i] > cap) w[i] = cap;
+    }
+    for (let i = 1; i < n; i++) {               // 正向：加速能力
+      const cap = w[i - 1] + W_SLOPE * (s[i] - s[i - 1]) * len;
+      if (w[i] > cap) w[i] = cap;
+    }
+  }
+  /* look-ahead 是取 min，会在「谁在限制」的切换处留个折角 → 再抹一遍 */
+  {
+    const nw = w.slice();
+    for (let i = 1; i < n - 1; i++) nw[i] = (w[i - 1] + w[i] + w[i + 1]) / 3;
+    w = nw;
+  }
+
   /* ---- 时间轴：tau = Σ ds / w ---- */
   const tau = [0];
   for (let i = 1; i < n; i++) {
@@ -266,6 +416,134 @@ export const ORBIT_PATH = (() => {
     speedAt,                   // 探针用
   };
 })();
+
+/* ---- 松手 → 变「开心」表情（素材与落点见上面那段）----
+
+   ⚠️ `happyT` 从**松手**那帧起算，不是按下 —— 按下只做预备（见 `EARTH` 里那组按压参数），
+   结果（回弹 + 叶弹 + 云出门 + 变脸）全在松手给出。用户口径：「把点击结果放在松手时给出，
+   读起来更像『按下—释放』」。
+
+   时间线（`happyT` 从松手那帧起算，秒）：
+
+     0 ──rise──► happyW = 1                交叉淡入（三态眼 × (1−happyW)、开心图 × happyW）
+     0 ──swingDur──► 左右摆                 走 `HAPPY_PATH` 那张表（= 用户演的轨迹**做顺**后的）
+     swingDur + hold ──fall──► happyW = 0   缓缓变回原表情
+
+   `rise` = 0.24 s（用户口径「约 200~250 ms 内交叉淡入」）；`swingDur` 与云绕一圈对齐，
+   所以「脸摆完」和「云回家」是同一帧 —— 两个动作一起起、一起收。
+
+   为什么要「摆」而不是直接换上：静态换脸读作「贴图变了」，摆一下才读作「它高兴了」。
+
+   **轨迹就是用户演的那条，只把「粗糙」做顺，不换路径。** 用户原话（2026-10-05）：
+   「我移动的曲线是粗糙的，你可以顺滑一点，**但不是改变路径逻辑**，你现在不又变回 v 字抖动了吗」
+   —— 中间试过一版「按解析式重画」（横向一个来回 + 纵向 2 个拱），**改掉了路径**，作废。
+
+   他的原始数据（`_draft/motion-sketch.html` → `_user-motion.json`，68 个样本 / 4.766 s）
+   为什么粗糙，两件事：
+     ① **0.8 px 台阶** —— dx / dy 的取值全是 0.8 的整数倍（演示台的显示宽度和 viewBox 不是
+        1:1，鼠标 clientX 又是整数 → 记录值被量化）。相邻样本跳一格 0.8 px / 7 ms 就是
+        230 px/s 的**假速度**，真实手速只有 10~60 px/s；
+     ② **呆滞** —— 4.766 s 里有 **2.51 s（52%）**位移不到 1 px，最长的一段 0.758 s。
+
+   处理链（`_draft/_happy-fit.py`，改参数重跑即可，**不动别的**）：
+     1. 从最后一个「还在原位」的样本起算（前面是空等）；
+     2. 末尾补一段回原位：他松手时停在 (5.6, −5.2)，用 Hermite（起速 = 松手那刻 ×0.6、末速 0）
+        补到 (0, 0) —— 不补的话摆动一结束脸会「啪」地弹回中线；
+     3. 240 Hz 均匀重采样 → **高斯平滑 σ = 120 ms**（只压台阶，不动走向）；
+     4. **抬谷**：新速度 ≈ 原速度 + 0.80 × 平均速度（`φ' = v/(v+F)` 再归一化）→
+        呆滞被提起来，快慢起伏还在（实测 6.4 ~ 23.5 px/s，原来 0.2 ~ 235）；
+     5. 缩放到 `TARGET = 4.4 s`（= 云绕一圈，用户要求对齐）；
+     6. 等间隔取 48 点 → 表（⚠️ 别少于 40：32 点时 Catmull-Rom 会在 V 形拐点压出一个假停顿）。
+
+   ⚠️ 五个坑（都踩过）：
+     · **对称高斯会把起点拉离原位**：滤波器在 t=0 处「看见」了后面的运动，实测 `xs[0] = −1.08 px`。
+       修法是拿 smoothstep 在 3σ 内把这段偏差**平滑地**还回去（直接 `xs -= xs[0]` 会留折角）；
+     · **别用「时间/弧长混合」去呆滞**（`p = a·u + (1−a)·弧长`）：那个式子等价于**给速度封顶**，
+       快段被压平、慢段只按比例变快 → 谷值照样在（实测 a = 0.15 时谷值仍有 3.9 px/s）。
+       要「顺」得用**加性抬谷**；
+     · **先平滑速度再积分**也试过：起点天然锚在 0，但终点会漂 1.7 px、贴合度从 0.12 退到 1.07 px；
+     · **σ 别贪小**：表是**等时间间隔**的（48 点 = 93.6 ms 一个点）。他轨迹里有两处**折返**
+       —— `(2.4, −5.9)` 的 V 和 `(−8, −2.9)` 的回头。σ 太小时拐点被压在**一个**点上，
+       Catmull-Rom 在拐点处的切线 `(P[i+1] − P[i−1])/2` 会**塌掉**，产品在那儿爬得比他的手还慢
+       （σ=0.08 实测 1.22 px/s，他手本身 1.1；σ=0.12 抬到 2.55）。再往上（≥0.15）开始削峰，
+       贴合度也从 0.99 涨到 1.16 px，不值；
+     · σ 也别贪大：他那几下 30~70 ms 的「跳」压过头就没了。
+
+   实测（`_happy-fit.py` 会打印）：新曲线离**原始折线**最近距离 **中位 0.25 / p95 0.68 / 最大 0.99 px**
+   —— 台阶本身就有 ±0.4 px 的余量，也就是说**走向没动**（最大那 1 px 落在 V 拐点上）。
+   结构：横向换向 1 次（一个来回）；纵向拱 4 个 —— 前进三下 `(−5.1, 6.8) / (0.7, 9.7) / (9.7, 14.7)`
+   加回程那一下 `(8.5, 11.2)`。
+
+   `HAPPY_PATH` 的坐标就是**脸心的位移**（viewBox px，y 向下为正），归一化时间等间隔 48 个点，
+   Catmull-Rom 求值。两端都精确回 (0, 0)，所以摆动一结束不会「啪」地弹回中线。
+
+   倾角 `rotPerPx · dx`（往哪边挪就朝哪边歪）= 「点头」。**没有这一项就只是平移，读不出点头**
+   （用户第二次反馈的要点）。支点用 `FACE_C`（脸心，viewBox 坐标）—— 支点必须落在**脸自己身上**，
+   放球心会额外把脸平推，把轨迹搅乱。
+
+   整颗球跟着歪 `ballRot ≈ tiltK · happyRot`（用户第三次反馈：「五官移动的时候星球表面
+   也可以跟着摆动下，就类似真实点头」）：球体与小芽绕**球心**转同一个角度，
+   于是大陆、云纹、轮廓一起动。
+   ⚠️ 它**不是等号**，是**一阶滞后**（`ballLag`，用户第五次反馈「球面点头比表情稍晚跟上」）——
+   脸的倾角先出、球体的倾角慢半个身位。滞后 0.12 s 对应约 1.2° 的瞬时差，换算到脸心
+   （离球心 46 px）只有 0.9 px，所以看不出「脸在球面上滑」，只读出先后。
+   ⚠️ 五官**不进**那个旋转组：它自己已经有同角度的倾斜，再进组会多吃一次绕球心的弧位移
+   （脸离球心 43 px，9° 就是 7 px），把他录的位移顶偏。两者角度基本一致 → 读起来仍是一体的；
+   差的只是「脸相对球面滑了不到 1 px」，而脸底下那片是纯色海面，看不出来。 */
+export const HAPPY = {
+  rise: 0.24,            // 表情淡入（秒）—— 用户口径「约 200~250 ms」
+  swingDur: ORBIT.dur,   // 摆动时长 = 云绕一圈的时长（4.4 s）—— 两个动作同时起、同时收
+  rotPerPx: 0.66,        // 倾角 / 横向位移（度每 px）—— 实测最大 13.3 px → 8.8°
+  tiltK: 1,              // 整颗球跟着歪的比例（1 = 球面最终与五官同角度）
+  ballLag: 0.12,         // 球面点头比表情晚跟上（秒，一阶滞后的时间常数）
+  hold: 0.30,            // 摆完停一下再退（秒）
+  fall: 0.95,            // 缓缓变回原表情（秒）
+};
+
+/** 「开心」动作的轨迹表：**归一化时间等间隔**的 48 个点（单位 viewBox px，y 向下为正）。
+ *  来源 `_draft/_happy-fit.py`（用户演的轨迹做顺：去 0.8 px 台阶 + 抬呆滞，走向没动，见上面那段）。
+ *  ⚠️ 点数别少于 40：32 点时 Catmull-Rom 在 V 形拐点会**多压出一个假停顿**
+ *  （实测中段最慢 1.52 px/s，48 点时回到 6.43）—— 那是插值的事，不是路径的事。
+ *  **改这张表要连注释一起改。** */
+export const HAPPY_PATH = {
+  dx: [
+    0, -1.07, -2.27, -3.42, -4.36, -5.05, -5.65, -6.31, -7.06, -7.71, -7.98, -7.63, -6.78,
+    -5.54, -4.05, -2.45, -0.83, 0.66, 1.82, 2.3, 2.39, 2.49, 2.91, 3.66, 4.75, 6.07,
+    7.45, 8.75, 9.99, 11.18, 12.22, 12.94, 13.27, 13.05, 12.36, 11.51, 10.48, 9.43, 8.48,
+    7.81, 7.19, 6.39, 5.43, 4.38, 3.25, 2.05, 0.91, 0,
+  ],
+  dy: [
+    0, -1.55, -3.33, -4.99, -6.24, -6.78, -6.3, -5.22, -3.94, -2.92, -3.17, -4.02, -5.11,
+    -6.42, -7.74, -8.82, -9.5, -9.75, -9.47, -8.44, -7.14, -6.24, -7.4, -9.08, -10.93, -12.62,
+    -13.87, -14.54, -14.68, -14.28, -13.31, -11.99, -10.74, -10.01, -10, -10.1, -10.41, -10.9, -11.21,
+    -10.54, -9.14, -7.3, -5.33, -3.56, -2.15, -1.12, -0.42, 0,
+  ],
+};
+
+/** Catmull-Rom 查表：归一化时间 τ ∈ [0,1] → 表上的点（写进复用对象，跑在 rAF 里）。
+ *  表是**等间隔**的，所以用均匀参数化就够了，不需要弦长参数化。
+ *  端点靠**镜像外推**补两个虚拟点（P₋₁ = 2P₀ − P₁、Pₙ = 2Pₙ₋₁ − Pₙ₋₂）——
+ *  不补的话首尾两段会退化成直线，收尾那一下会看出折角。 */
+const happyPt = { x: 0, y: 0 };
+function happyAt(tau) {
+  const { dx, dy } = HAPPY_PATH;
+  const n = dx.length;
+  if (tau <= 0) { happyPt.x = dx[0]; happyPt.y = dy[0]; return happyPt; }
+  if (tau >= 1) { happyPt.x = dx[n - 1]; happyPt.y = dy[n - 1]; return happyPt; }
+  const u = tau * (n - 1);
+  const i = Math.min(n - 2, Math.floor(u));
+  const s = u - i, s2 = s * s, s3 = s2 * s;
+  /* 越界只可能差一格（i ≥ 0 且 i + 2 ≤ n），所以只处理 −1 与 n 两种 */
+  const a = (j) => (j < 0 ? 2 * dx[0] - dx[1] : j > n - 1 ? 2 * dx[n - 1] - dx[n - 2] : dx[j]);
+  const b = (j) => (j < 0 ? 2 * dy[0] - dy[1] : j > n - 1 ? 2 * dy[n - 1] - dy[n - 2] : dy[j]);
+  const p0 = a(i - 1), p1 = a(i), p2 = a(i + 1), p3 = a(i + 2);
+  const q0 = b(i - 1), q1 = b(i), q2 = b(i + 1), q3 = b(i + 2);
+  happyPt.x = 0.5 * (2 * p1 + (-p0 + p2) * s + (2 * p0 - 5 * p1 + 4 * p2 - p3) * s2
+                   + (-p0 + 3 * p1 - 3 * p2 + p3) * s3);
+  happyPt.y = 0.5 * (2 * q1 + (-q0 + q2) * s + (2 * q0 - 5 * q1 + 4 * q2 - q3) * s2
+                   + (-q0 + 3 * q1 - 3 * q2 + q3) * s3);
+  return happyPt;
+}
 
 /** 梯形速度曲线的**解析积分**：归一化时间 u ∈ [0,1] → 已走过的弧长比例。
     前 `e` 段用 smoothstep 从 0 加速到 1、后 `e` 段减速回 0、中间匀速 ——
@@ -298,7 +576,10 @@ function orbitAt(u) {
 }
 
 /* 雨：纯 SVG 小水滴（不需要额外素材）。
-   落点**相对云中心**算，不写死 viewBox 坐标 —— 云会横向漂移，雨要跟着一起挪。 */
+   落点**相对云中心**算，不写死 viewBox 坐标 —— 云会横向漂移，雨要跟着一起挪。
+   ⚠️ 这里给的是**相对地球**的 viewBox 坐标，而 `#earthRain` 挂在 `#earthBreath`
+   **外面**（用户 2026-10-06：「雨就不用有呼吸了」）—— 所以纵向落点不会被呼吸的
+   `scale(breathSY)` 乘一遍、也不会被点击压扁。改 DOM 层级时要连这里一起看。 */
 export const RAIN = {
   count: 5,
   halfW: 42,                     // 落点相对云中心的横向半宽
@@ -331,18 +612,36 @@ export const EARTH = {
   /* 云：只留呼吸缩放（跟地球同周期）。**漂移与轨道路径在 ORBIT 里**，不在这儿。 */
   cloudBreath: 0.05,
 
-  /* 悬停 / 点击 */
+  /* 悬停 / 按压。
+     交互口径（2026-10-05 用户给的五阶段表）：**按下只做预备，结果放在松手**。
+     按下 → 只压一下（`pressRate` 决定多快压到位，≈90 ms 读满）；
+     松手 → 球体**回弹**（`rebound*` 那组，先拉高变瘦再落回）+ 叶片轻弹 + 云出门 + 开心淡入。
+     这样按下的「预备感」和松手的「结果」分成两拍，不会所有效果同时炸开。 */
   hoverLift: -9,
-  pressSquash: 0.86,
-  pressWiden: 1.09,
+  pressSquash: 0.86,       // 压到位时的纵向比例
+  pressWiden: 1.09,        // 压到位时的横向比例
+  pressRate: 20,           // 按压逼近速率（1/s）：90 ms 到 84%、140 ms 到 94% —— 「约 80~100 ms」读满
 
-  /* 点击时两片叶的甩动：一次冲激 + 指数衰减（和太阳那边「装饰被震一下」同一读法）。
-     叶子在 #earthBreath 里已经跟着地球一起吃压扁了，这一层是**额外**的甩动 ——
-     地球压下去的同时叶子被震得抖两下，读起来才有「软的」感觉。 */
-  whipAmp: 7.5,        // 冲激幅度（度）
-  whipHz: 4.6,         // 振荡频率
-  whipZeta: 0.16,      // 阻尼比
-  whipDur: 1.1,        // 冲激总时长（秒）
+  /* 松手回弹：一次冲激 + 指数衰减，叠加在挤压上（正 = **拉高变瘦**，与压扁反号）。
+     ⚠️ 幅度要和压扁量**同量级**才有「弹」：松手那一刻球还压着 14%，冲激得先把这 14%
+     补回来、再冲过头，才读得出回弹。实测 `0.12` + `pressRate 20` → 净过冲 **+3.6%**（约 9 px），
+     落在松手后 ~90 ms；给 0.05 的话净过冲只有 0.4%，等于没弹（踩过）。
+     `ζ = 0.45` 时第二下只剩第一下的 `e^(−πζ) ≈ 24%` —— 读作「弹一下、一下收住」，
+     不是「抖好几下」。`sin` 起手（t=0 位移为 0），所以松手那一帧不会闪。 */
+  reboundAmp: 0.12,        // 幅度（相对尺寸）
+  reboundHz: 2.8,          // 频率（Hz）
+  reboundZeta: 0.45,       // 阻尼比
+  reboundDur: 0.80,        // 总时长（秒）
+
+  /* 松手时两片叶的甩动：一次冲激 + 指数衰减（和太阳那边「装饰被震一下」同一读法）。
+     ⚠️ 比球体回弹**晚 `whipDelay` 起摆**（「跟随」那一档：球先弹、叶再跟）。
+     ⚠️ 频率别给高：4.6 Hz / ζ0.16 是「高频抖好几下」，用户嫌突兀；
+        2.1 Hz / ζ0.42 是「一次有收尾的轻弹」。 */
+  whipAmp: 6.0,        // 冲激幅度（度）
+  whipHz: 2.1,         // 振荡频率
+  whipZeta: 0.42,      // 阻尼比
+  whipDur: 1.25,       // 冲激总时长（秒）
+  whipDelay: 0.12,     // 起摆延迟（秒），比球体回弹晚
 
   /* 眨眼 */
   blinkMin: 2.5, blinkMax: 6.0,
@@ -392,12 +691,23 @@ export function createEarthAnim({ rand = Math.random } = {}) {
 
   /* 交互状态（权重向目标逼近，不用 snap） */
   let hoverW = 0, pressW = 0;
-  /* 叶子甩动的冲激时钟：<0 = 没在甩 */
+  /* 松手回弹的冲激时钟：<0 = 没在弹 */
+  let reboundT = -1;
+  /* 球面点头的**滞后**值（见 step 里那段）：一阶跟随 happyRot，不直接等号 */
+  let ballRotW = 0;
+  /* 叶子甩动的冲激时钟：<0 = 没在甩。⚠️ 从 0 起算，`whipDelay` 之内不出位移 */
   let whipT = -1;
-  /* 云的轨道（见 ORBIT）。`orbT` = 轨道时钟（<0 = 停在家）；`prevDX` / `prevDY` = 上一帧的
-     **轨道位移**，用来差分出速度（不拿含漂移的总位移差分 —— 那样静止位会一直有 ~40 px/s 假速度）。 */
-  let orbT = -1;
+  /* 云的轨道（见 ORBIT）。`orbT` = 动作时钟，**`null` = 停在家**，否则从 `0` 走到
+     `ORBIT.dur + ORBIT.landDur`（环绕 `dur` + 到家后的释放 `landDur`）。
+     ⚠️ 起跳弹 / 蓄力都**叠在 `dur` 里面**，不是额外占一段时间（见 ORBIT 那段）。
+     `prevDX` / `prevDY` = 上一帧的**轨道位移**，用来差分出速度
+     （不拿含漂移的总位移差分 —— 那样静止位会一直有 ~40 px/s 假速度）。 */
+  let orbT = null;
   let prevDX = 0, prevDY = 0;
+  /* 「开心」表情：`happyT` = 时钟（<0 = 没在播，表情是原样）；
+     `happyP` = 淡入淡出**进度**（0 = 原表情，1 = 开心）—— 自己积分，见 step() 里那段。 */
+  let happyT = -1;
+  let happyP = 0;
 
   /* 眨眼计时器（逐实例）。时序走 `src/shared/blink.js`；曲线用地球自己的两条 ——
      smoothstep 闭合 / 二次 ease-out 张开，和太阳那两条贝塞尔不是一个形状，所以显式传进去。
@@ -411,6 +721,10 @@ export function createEarthAnim({ rand = Math.random } = {}) {
   });
 
   let t = 0;
+  /* 呼吸相位**累加器**（0~1 循环）。见 step() 里「相位必须累加」那一段 ——
+     不能写成 `(t % dur) / dur`：`dur` 被 hoverW 连续调制，用绝对 t 取模会在悬停
+     过渡期整圈乱跳（页面开越久越明显，实测抖动到静止期的 50 倍）。 */
+  let breathPh = 0;
 
   /**
    * 推进一帧，返回这一帧要写进 DOM 的**全部数值**（本函数不碰 DOM）。
@@ -419,54 +733,112 @@ export function createEarthAnim({ rand = Math.random } = {}) {
   function step(dt, { hovered = false, pressed = false } = {}) {
     t += dt;
 
-    /* 权重逼近（与帧率无关） */
+    /* 权重逼近（与帧率无关）。`pressRate` 高 → 按下去 ~90 ms 就读满「轻微压缩」，
+       所以按下的预备感是**独立的一拍**，不会拖到松手之后。 */
     hoverW = approach(hoverW, hovered ? 1 : 0, 10, dt);
-    pressW = approach(pressW, pressed ? 1 : 0, 10, dt);
+    pressW = approach(pressW, pressed ? 1 : 0, EARTH.pressRate, dt);
 
-    /* 呼吸：悬停时周期变短（读起来是「兴奋了一点」） */
+    /* 呼吸：悬停时周期变短（读起来是「兴奋了一点」）。
+       ⚠️ **相位必须累加**，不能写 `ph = (t % dur) / dur`：
+       `dur` 是被 hoverW **连续调制**的，用绝对时间 `t` 取模时，`dur` 每变一点，
+       `t % dur` 就可能整圈重来 → `wave` 在悬停过渡期高频乱跳（`wave` 同时喂呼吸缩放
+       与上下浮动，所以球会一边抖一边脉动）。页面开得越久越明显 ——
+       t=2 s 时几乎看不出，t=60 s 时抖动是静止期的 ~50 倍、0.4 s 内换向 13 次。
+       累加器让相位**连续**，周期变化只表现为「呼吸平滑地变快」。 */
     const dur = EARTH.breathDur * (1 - (1 - EARTH.hoverBreath) * hoverW);
-    const ph = (t % dur) / dur;
+    breathPh += dt / dur;
+    breathPh -= Math.floor(breathPh);
+    const ph = breathPh;
     /* 不对称：吸快、呼慢（和太阳同一套读法） */
     const wave = ph < 0.42 ? Math.sin((ph / 0.42) * Math.PI / 2) : Math.cos(((ph - 0.42) / 0.58) * Math.PI / 2);
     const bs = EARTH.breathS * wave;
 
-    /* 点击挤压：按下时压扁拉宽，松开回弹 */
-    const sq = 1 - (1 - EARTH.pressSquash) * pressW;
-    const wd = 1 + (EARTH.pressWiden - 1) * pressW;
+    /* 按压 + 松手回弹。挤压与拉伸**反号**：压下去矮胖、弹回来高瘦。
+       回弹是**额外**叠上去的（`pressW` 自己还在按 `pressRate` 往回走）——
+       两个叠加才读得出「先被压住、再弹一下站住」。 */
+    let rebound = 0;
+    if (reboundT >= 0) {
+      reboundT += dt;
+      const rw = 2 * Math.PI * EARTH.reboundHz;
+      rebound = dampedImpulse(reboundT, EARTH.reboundAmp, EARTH.reboundZeta * rw, rw);
+      if (reboundT >= EARTH.reboundDur) reboundT = -1;
+    }
+    const sq = 1 - (1 - EARTH.pressSquash) * pressW + rebound;
+    const wd = 1 + (EARTH.pressWiden - 1) * pressW - rebound;
 
     /* 整体摆动：和呼吸**不同周期**，故意不成倍数 */
     const sway = Math.sin((t / EARTH.swayDur) * Math.PI * 2) * EARTH.swayRot;
 
     const bobY = -EARTH.bobAmp * wave + EARTH.hoverLift * hoverW;
 
-    /* 点击甩动：一次冲激 + 指数衰减（叶子被震一下）。
+    /* 松手甩动：一次冲激 + 指数衰减（叶子被震一下）。
        地球这里用**同一个 ω 既做衰减又做振荡**（调参时就是这么定的），
        和太阳那边的阻尼振子不是一套语义 —— 见 `shared/impulse.js` 的说明。
-       sin 起手（从 0 开始）—— 起手是 cos 的话第一帧就有位移，会闪一下。 */
+       sin 起手（从 0 开始）—— 起手是 cos 的话第一帧就有位移，会闪一下。
+       ⚠️ `whipDelay` 之内**不出位移**（时钟照走），所以叶子比球体回弹晚起摆；
+       结束点也要跟着往后挪，否则会把尾巴切掉一半。 */
     let whip = 0;
     if (whipT >= 0) {
       whipT += dt;
-      const w = 2 * Math.PI * EARTH.whipHz;
-      whip = dampedImpulse(whipT, EARTH.whipAmp, EARTH.whipZeta * w, w);
-      if (whipT >= EARTH.whipDur) whipT = -1;
+      const a = whipT - EARTH.whipDelay;
+      if (a > 0) {
+        const w = 2 * Math.PI * EARTH.whipHz;
+        whip = dampedImpulse(a, EARTH.whipAmp, EARTH.whipZeta * w, w);
+      }
+      if (whipT >= EARTH.whipDelay + EARTH.whipDur) whipT = -1;
     }
 
-    /* 云：沿闭合路径绕地球一圈（见 ORBIT）。
-       时钟推进 → 归一化时间 u → `easeDist` → `orbitAt` 查 `tau` 表 → 路径上的点。
-       起点 = 终点 = 静止位，所以出门 / 回家天然无缝。
+    /* 云：**点一下 → 弹（与出行同帧起跑）→ 绕地球一圈 → 尾段蓄力 → 到家立刻弹一下就结束**
+       （见 ORBIT 里「起跳弹 / 落地弹」那段）。时钟 `orbT` 从 `0` 走到 `dur + landDur`。
+
+         [0, dur)               绕一圈。`uPath = easeDist(orbT / dur)`；
+                                头 `popDur` 上叠**起跳弹**（蹲 → 蹬 → 余韵在路途中晃完），
+                                尾 `landCharge` 上叠**蓄力**（越近家压得越紧）
+         [dur, dur + landDur)   **到家那一帧立刻**释放：从蓄力末端的压扁量起步，
+                                过冲一下（拉高）再衰减回 0 —— 一次就收
+
        两个参数各管一件事，**别混**：
          · `easeDist(u)` = 起停（两端速度为 0 → 静止位不歪、不拉伸）
          · `tau` 表      = 快慢（弯里慢、直道快）
        `orbitAt` 收的是**时间**比例，所以喂 `easeDist` 的结果正是想要的；
        若直接喂原始 `u`，`tau` 表就白给了（退化成匀速）。
-       `orbT` 走完就置回 −1：位移归 0，而路径闭合 → 不会跳。 */
-    let orbitU = 0, uPath = 0;
-    if (orbT >= 0) {
+       ⚠️ 到家之后 `uPath` 取 **0 不是 1**：路径闭合 → 两点是同一个点（位移都是 0），
+       但 `behind` 判的是 `uPath > uBehind` —— 取 1 会把释放那一下画在球体**后面**。
+       ⚠️ 起跳弹与蓄力**不会撞车**：`popDur`(0.55) 远小于 `dur − landCharge`(3.95)，
+       两个波形在中间那一大段都恒为 0。 */
+    let orbitU = 0, uPath = 0, bounce = 0, bounceDY = 0;
+    if (orbT !== null) {
       orbT += dt;
-      if (orbT >= ORBIT.dur) orbT = -1;
-      else { orbitU = orbT / ORBIT.dur; uPath = easeDist(orbitU); }
+      if (orbT < ORBIT.dur) {
+        orbitU = orbT / ORBIT.dur;
+        uPath = easeDist(orbitU);
+        /* 起跳弹：**与出行同帧起跑**（不是「弹完再走」）。飞行的起停缓动本身就慢
+           （ease 0.14 × 4.4 s ≈ 0.62 s 才加速完），所以蹲 / 蹬那两下恰好落在
+           「还看得见它在家门口」的那段里，余韵被路途吃掉 —— 读作「点-弹-走」。 */
+        const bw = bounceWave(orbT, ORBIT.popDur, ORBIT.popHz, ORBIT.popZeta);
+        /* 蓄力：最后 `landCharge` 秒用 smoothstep 渐进压扁（0 → −1，负 = 压扁变宽）。 */
+        const cw = -ramp(ORBIT.dur - ORBIT.landCharge, ORBIT.dur, orbT);
+        bounce = ORBIT.popAmp * bw + ORBIT.landAmp * cw;
+        bounceDY = -(ORBIT.popHop * bw + ORBIT.landHop * cw);
+      } else {
+        /* 释放段没有「轨道进度」可言，`orbitU` 钉在 1 —— 它是**进度**语义
+           （0 = 还在家，1 = 一圈已走完，整趟收工后才回 0），不是弧长位置。
+           探针拿 `orbitU > 0` 当「这一趟还没收工」的判据（**含**释放段），见 _cloud-trace.mjs。 */
+        orbitU = 1;
+        /* 释放：从蓄力末端那个压扁量**起步**（cos 起手 → t=0 值为 1，与 `cw = −1` 接得上），
+           过冲到 `−e^(−πζ)`（= 拉高变窄）再衰减回 0 = 「弹一下就结束」。 */
+        const rw = releaseWave(orbT - ORBIT.dur, ORBIT.landDur, ORBIT.landHz, ORBIT.landZeta);
+        bounce = -ORBIT.landAmp * rw;
+        bounceDY = ORBIT.landHop * rw;
+        if (orbT >= ORBIT.dur + ORBIT.landDur) orbT = null;
+      }
     }
     const pt = orbitAt(uPath);
+    /* ⚠️ `orbitS` 与 `orbitU` **不是同一把尺**，别混着用：
+         · `orbitU` = 时间**进度**（0 → 1 → 释放段钉 1 → 收工回 0）
+         · `orbitS` = 闭合路径上的**弧长位置**（0 → 1 → 到家后又回 0，因为路径首尾同点）
+       所以释放段会出现「`orbitU` = 1 而 `orbitS` = 0」—— 不是矛盾，是两个量在量不同的东西。
+       探针分段 / 反查曲率用 `orbitS`（对 `tau` 单调），判「在不在飞」用 `orbitU`。 */
     const orbitS = pt.s;                 // 弧长比例（探针用它分段，不参与运动）
     const orbDX = pt.x - CLOUD.x;
     const orbDY = pt.y - CLOUD.y;
@@ -497,7 +869,7 @@ export function createEarthAnim({ rand = Math.random } = {}) {
       .reduce((s, [p, a]) => s + Math.sin((t / p) * Math.PI * 2) * a, 0);
     const driftYY = Math.sin((t / ORBIT.driftY[0]) * Math.PI * 2) * ORBIT.driftY[1];
     const cloudX = CLOUD.x + driftXX + orbDX;
-    const cloudY = CLOUD.y + driftYY + orbDY;
+    const cloudY = CLOUD.y + driftYY + orbDY + bounceDY;
     /* 雨只跟**静止位 + 漂移**，不跟轨道位移 —— 否则云绕到球那边，雨也跟着横移。 */
     const rainX = CLOUD.x + driftXX;
 
@@ -509,28 +881,72 @@ export function createEarthAnim({ rand = Math.random } = {}) {
     const stretchN = Math.min(1, Math.abs(cloudVX) / ORBIT.vRef);
     const cloudStretch = 1 + ORBIT.stretch * stretchN;
     const cloudS = CLOUD.k * (1 + EARTH.cloudBreath * wave);
+    /* 弹跳的挤压：**纵向**缩放 `1 + bounce`（正 = 拉高变窄），横向等量反号 → 面积守恒。
+       与 `cloudStretch`（横向拉伸）是**两件事**，叠在一起（飞行中同时被拉扁 + 起跳时被压扁）。 */
+    const cloudBounce = 1 + bounce;
 
     /* 雨量：**云出门时不下雨**。雨滴落点是相对静止位算的 —— 云跑到 200 px 外还下着雨，
        读作「雨从空气里来」。云回来时雨也跟着回来。
        窗口按 `dur` 的倍数给（见 ORBIT.rainOut / rainIn），改 dur 自动跟着走。
        两段 ramp 直接相减即可：`1 − 收雨 + 复雨` 在 o1~i0 之间恒为 0、在 i1 之后恒为 1。 */
+    /* ⚠️ 窗口只在「真的在飞」那段（`orbT ∈ [0, dur)`）生效。
+       起跳弹现在**与出行同帧起跑** —— 云从第 0 帧就在往外挪，所以收雨窗口也从第 0 帧起算
+       （`rainOut` 的起点 `0.015·dur ≈ 0.07 s` 正好压在那一下「蹲 → 蹬」上）。
+       到家后的释放段（`orbT ≥ dur`）云已经回家，雨该照下 → 那一段 `rainOp` 恒 1。
+       若把上界去掉（只写 `orbT >= 0`）：释放段 `orbT > dur` 时两个 ramp 都早读完（1 和 1）
+       → `rainOp` 也是 1，数值上一样；但留着上界语义才清楚「窗口只属于飞行段」。 */
     let rainOp = 1;
-    if (orbT >= 0) {
+    if (orbT !== null && orbT >= 0 && orbT < ORBIT.dur) {
       const [o0, o1] = ORBIT.rainOut;
       const [i0, i1] = ORBIT.rainIn;
       rainOp = 1 - ramp(o0 * ORBIT.dur, o1 * ORBIT.dur, orbT)
                  + ramp(i0 * ORBIT.dur, i1 * ORBIT.dur, orbT);
     }
 
-    /* 五官跟随：云走开时整张脸（眼 + 嘴是一张图，只能**整层平移**）朝它偏一点。
-       归一化基准是**轨道位移**（不含静止漂移）→ 静止位恒为 0，不会「脸一直歪着」。 */
-    const followX = Math.max(-1, Math.min(1, orbDX / ORBIT.rx));
-    const followY = Math.max(-1, Math.min(1, orbDY / DIP_Y));
-    const eyeDX = ORBIT.eyeMax * followX;
-    const eyeDY = ORBIT.eyeMax * ORBIT.eyeDown * followY;
+    /* 点击变「开心」：交叉淡入 + 左右摆 + 缓缓退回（时间线见 HAPPY 那段）。
+
+       淡入淡出**积分** `happyP`（进度 0~1，线性推进），输出前过一遍 `smoothstep` ——
+       不写成 `ramp(0, rise, happyT)` 那种「时间的闭式」：闭式的进度只由时钟决定，
+       淡出中途再点一次就只能把时钟归零 → `happyW` 从当前值（比如 0.49）**瞬间掉到 0**
+       （脸闪一下原表情）。积分的进度可以停在任意位置往回走，接着爬就行。
+
+       摆动同理用闭式，但 `triggerHappy` 在**摆动还没走完时直接不打断**
+       —— 归零会让位移从当前值跳回中线（脸「啪」地弹回去）。见那边的注释。 */
+    let happyDX = 0, happyDY = 0, happyRot = 0;
+    if (happyT >= 0) {
+      happyT += dt;
+      const outStart = HAPPY.swingDur + HAPPY.hold;
+      const dir = happyT < outStart ? 1 : -1;
+      const span = dir > 0 ? HAPPY.rise : HAPPY.fall;
+      happyP = Math.max(0, Math.min(1, happyP + dir * dt / span));
+
+      if (happyT < HAPPY.swingDur) {
+        /* 轨迹直接查 `HAPPY_PATH`（用户演的轨迹做顺，见 HAPPY 那段）——
+           τ = 0 起手、τ = 1 回到原位，所以到点不会跳。 */
+        const pt = happyAt(happyT / HAPPY.swingDur);
+        happyDX = pt.x;
+        happyDY = pt.y;
+        /* 往哪边挪就朝哪边歪 = 「点头」 */
+        happyRot = HAPPY.rotPerPx * pt.x;
+      }
+      if (happyT >= outStart + HAPPY.fall) happyT = -1;
+    }
+
+    /* 球面点头：**比表情晚跟上**（用户口径「球面点头比表情稍晚跟上」）——
+       一阶滞后跟随，所以脸的倾角先出、球体的倾角慢半个身位，读起来是「脸先动、球面跟着点」。
+       直接等号（`ballRot = happyRot · tiltK`）读起来是整块一起转，缺这层先后关系。
+       ⚠️ 指数逼近**永远到不了 0**，所以低于阈值时吸附归零：不吸附的话结尾会留一个
+       1e-4 量级的残余，「结尾精确归 0」那条判据会红（而那个残余本身看不见）。
+       0.01° 在脸心（离球心 46 px）上是 0.008 px —— 吸附本身也看不见。 */
+    ballRotW = approach(ballRotW, happyRot * HAPPY.tiltK, 1 / HAPPY.ballLag, dt);
+    if (Math.abs(ballRotW) < 0.01) ballRotW = 0;
+    const ballRot = ballRotW;
+    const happyW = smoothstep(happyP);
 
     /* 雨：每颗从云底落到芽顶，头尾各 15% 淡入淡出。
-       下落时纵向拉长、横向略收 —— 读作「越落越快」。雨竖直落，不带风。 */
+       下落时纵向拉长、横向略收 —— 读作「越落越快」。雨竖直落，不带风。
+       ⚠️ 这些是**相对地球**的 viewBox 坐标；`#earthRain` 不在呼吸组里（见 `RAIN` 那段），
+       所以「雨不呼吸」是靠 **DOM 层级**实现的，这里不用做任何补偿。 */
     for (let i = 0; i < drops.length; i++) {
       const d = drops[i];
       const p = (t * d.speed + d.phase) % 1;
@@ -556,32 +972,57 @@ export function createEarthAnim({ rand = Math.random } = {}) {
          拉伸是**横向**的，所以 index.js 里 `scale(sx sy)` 要放在 `rotate` 之后 ——
          缩放轴跟着倾角走，读起来才是「被拉扁」而不是「被压扁」。 */
       cloudX, cloudY,
-      cloudRot, cloudSX: cloudS * cloudStretch, cloudSY: cloudS / cloudStretch,
+      cloudRot, cloudSX: cloudS * cloudStretch / cloudBounce, cloudSY: cloudS * cloudBounce / cloudStretch,
       /* 云的图层：true = 走球体**下层**（回程弧那一段）→ index.js 切两个 <image> 的显示 */
       behind,
       drops: frame,
-      /* 五官整层平移（viewBox 坐标，最多 eyeMax px）—— index.js 写在外层包装组上 */
-      eyeDX, eyeDY,
+      /* 表情：`happyW` = 开心图的权重（三态眼按 (1−happyW) 淡出）、
+         `happyDX` / `happyDY` = 整层脸的偏移（viewBox 坐标，走用户演的 `HAPPY_PATH`）、
+         `happyRot` = 整层脸的倾角（度，正 = 顺时针）—— 合起来读作「左点点头、右点点头」。
+         都写在外层组 `#earthFace` 上，支点用 `FACE_C`。
+         `ballRot` = **整颗球**（球体 + 小芽）跟着歪的角度，绕球心 —— 写在那两个倾斜组上，
+         它比 `happyRot` **晚半个身位**（一阶滞后，见 `HAPPY.ballLag`）。
+         五官**不吃**这一项（它自己已经有同角度的 `happyRot`，再吃一次会把他录的位移顶偏）。 */
+      happyW, happyDX, happyDY, happyRot, ballRot,
+      /* 探针 / 调试用（DOM 不需要）：按下/回弹/叶甩三个通道的瞬时值，
+         用来核「按下只预备、松手才给结果、叶子晚一点起摆」这套先后关系。
+         `pressW` = 按压权重（0~1）、`rebound` = 回弹形变（正 = 拉高变瘦）、
+         `whip` = 叶子的甩动角（**不含**静态倾角与常驻摆动）。 */
+      pressW, rebound, whip,
       eyes: eyeWeights(blink.value()),
       blink: blink.value(),
       /* 探针 / 调试用（DOM 不需要）：轨道进度、弧长比例、云速与雨量系数。
          `orbDX/orbDY` 是**纯轨道位移**（不含静止漂移）—— 探针要靠它把「真的出门了」
-         和「只是在家门口漂」分开，`cloudX - CLOUD.x` 分不开这两件事。 */
-      orbitU, orbitS, orbDX, orbDY, cloudVX, cloudVY, rainOp,
+         和「只是在家门口漂」分开，`cloudX - CLOUD.x` 分不开这两件事。
+         `orbT` = 动作时钟（`null` = 停在家；`0..dur` = 环绕、`>dur` = 到家后的释放），
+         `bounce` = 弹跳的纵向缩放增量（正 = 拉高变窄）、`bounceDY` = 弹跳的纵向位移。 */
+      orbitU, orbitS, orbDX, orbDY, cloudVX, cloudVY, rainOp, orbT, bounce, bounceDY,
     };
   }
 
   return {
     step,
     drops,
-    /** 点下去 → 叶子被震一下（把冲激时钟归零） */
+    /** 松手 → 球体回弹（把回弹冲激时钟归零）。
+        这是「松手」那一套的第一个动作，四个 `trigger*` 一起调才是完整的一次释放。 */
+    triggerRelease() { reboundT = 0; },
+    /** 松手 → 叶子轻弹（把冲激时钟归零；真正的位移要等 `whipDelay` 之后才出） */
     triggerWhip() { whipT = 0; },
-    /** 点下去 → 云出门，沿闭合路径绕地球一圈。
-        **绕的过程中忽略新的点击**（不是设一个防抖窗口）：路径从静止位起跑，
-        中途重入会让云**瞬移**回起点。等它自己走完（`dur` = 4.4 s）就又能点了。
+    /** 松手 → 变「开心」表情（交叉淡入 + 左右摆 + 缓缓退回，见 HAPPY）。
+        和 `triggerOrbit` 不同，这里**允许打断**：淡出中途再点就接着爬回去（进度是积分的，
+        不会闪）。唯一的例外是**摆动还没走完时直接返回** —— 摆动是闭式，时钟归零会让位移
+        从当前值跳回中线（脸「啪」地弹回去）；而那会儿本来就在弹，不重来也不缺反应。 */
+    triggerHappy() {
+      if (happyT >= 0 && happyT < HAPPY.swingDur) return;
+      happyT = 0;
+    },
+    /** 松手 → 云起跳：**弹与出行同帧起跑**（不是弹完再走），沿闭合路径绕地球一圈，
+        尾段一边飞一边蓄力，到家那一帧立刻弹一下就结束。
+        **动作过程中忽略新的点击**（不是设一个防抖窗口）：路径从静止位起跑，
+        中途重入会让云**瞬移**回起点。等它自己走完（`dur + landDur` ≈ 4.85 s）就又能点了。
         被忽略的那次点击仍有 `triggerWhip` 的叶子反馈，不会「点了没反应」。 */
     triggerOrbit() {
-      if (orbT >= 0) return;
+      if (orbT !== null) return;
       prevDX = 0; prevDY = 0;
       orbT = 0;
     },

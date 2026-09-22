@@ -18,6 +18,7 @@ import { SVG_SCENE } from './scene.js';
 import { DEG, SUN, createMixer, FX, RING_TILT, ringTiltK } from './anim.js';
 import { clampDt } from '../../shared/clock.js';
 import { approach } from '../../shared/approach.js';
+import { INTRO, createIntro } from '../../shared/intro.js';
 import { bindPointerInput } from '../../shared/input.js';
 
 /* 视线跟随总开关。
@@ -26,23 +27,11 @@ import { bindPointerInput } from '../../shared/input.js';
    也可逐实例覆盖：mountSun(root, { look: true })。 */
 export const LOOK_FOLLOW = false;
 
-/* 入场：页面加载时的一次性**镜头级**效果，不是角色状态 ——
-   所以写在 index.js 而不是 anim.js（anim.js 每帧输出角色状态，入场叠在它外面、结束后不参与）。
-   缩放写在 #sun 上（其局部原点就是太阳中心，所以是原地放大）；星环前后两层 / #crownGroup /
-   发夹都是它的子节点，会自动跟着弹入。
+/* 入场：形状（`dur` / `fromScale` / `dy`）与曲线在 `shared/intro.js`，地球用**同一组**；
+   这里只把作用点说清楚 —— 缩放写在 `#sun` 上，其局部原点就是太阳中心，所以是原地放大；
+   星环前后两层 / #crownGroup / 发夹都是它的子节点，会自动跟着弹入。
    `prefers-reduced-motion: reduce` 时直接跳到终态（见 mountSun 里的 REDUCED）。 */
-export const INTRO = {
-  dur: 0.62,         // 秒
-  fromScale: 0.62,   // 起始缩放（相对静止姿态）
-  dy: 34,            // 起始下移（Sun 局部单位）
-};
-
-/** back-out：末段会冲过 1 再落回来（峰值约 1.10），读起来是「弹一下站住」 */
-function introEase(u) {
-  if (u >= 1) return 1;
-  const c1 = 1.70158, c3 = c1 + 1;
-  return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
-}
+export { INTRO };
 
 export function mountSun(root, { look = LOOK_FOLLOW, glow = FX.sparkGlow, intro = true } = {}) {
   if (!root) throw new Error('mountSun: 缺少挂载容器');
@@ -111,13 +100,12 @@ export function mountSun(root, { look = LOOK_FOLLOW, glow = FX.sparkGlow, intro 
   setGlow(glow);
 
   function apply(v) {
-    /* 入场：只在 introT < INTRO.dur 期间生效，结束后 ik 恒为 1、idy 恒为 0，
-       画面逐位回到没有入场时的样子。 */
-    const ie = introEase(introT / INTRO.dur);
-    const ik = INTRO.fromScale + (1 - INTRO.fromScale) * ie;
-    const idy = (1 - ie) * INTRO.dy;
-    if (ie < 1) sceneEl.style.opacity = ie.toFixed(3);
-    else if (sceneEl.style.opacity) sceneEl.style.opacity = '';
+    /* 入场：只在没走完 `INTRO.dur` 期间生效，结束后 `k` 恒为 1、`dy` 恒为 0、opacity 清空 ——
+       画面逐位回到没有入场时的样子（见 `shared/intro.js`）。 */
+    const iv = introFx.current();
+    const ik = iv.k, idy = iv.dy;
+    if (iv.opacity === null) { if (sceneEl.style.opacity) sceneEl.style.opacity = ''; }
+    else sceneEl.style.opacity = iv.opacity;
 
     sunEl.setAttribute('transform',
       `translate(0 ${(v['sun.y'] - SUN.y + idy).toFixed(4)}) ` +
@@ -222,11 +210,10 @@ export function mountSun(root, { look = LOOK_FOLLOW, glow = FX.sparkGlow, intro 
   const lookToY = gsap.quickTo(lookEl, 'y', { duration: 0.18, ease: 'power2.out' });
 
   let tx = SUN.x, ty = SUN.y, sx = SUN.x, sy = SUN.y;
-  const stage = root;
 
   if (look) {
     window.addEventListener('pointermove', (e) => {
-      const r = stage.getBoundingClientRect();
+      const r = root.getBoundingClientRect();
       if (!r.width) return;
       tx = (e.clientX - r.left) / r.width * 590;
       ty = (e.clientY - r.top) / r.height * 600;
@@ -235,14 +222,14 @@ export function mountSun(root, { look = LOOK_FOLLOW, glow = FX.sparkGlow, intro 
 
   /* 主循环 */
 
-  /* 入场进度（秒）。`prefers-reduced-motion: reduce` 时按已播完处理，直接是终态 */
+  /* 入场进度（见 shared/intro.js）。`prefers-reduced-motion: reduce` 时按已播完处理，直接是终态 */
   const REDUCED = typeof matchMedia === 'function' &&
     matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let introT = (intro && !REDUCED) ? 0 : INTRO.dur;
+  const introFx = createIntro({ enabled: intro && !REDUCED });
 
   function tick(_time, deltaMs) {
     const dt = clampDt(deltaMs);
-    if (introT < INTRO.dur) introT += dt;
+    introFx.step(dt);
 
     /* 视线平滑：指数滤波，与帧率无关 */
     sx = approach(sx, tx, SMOOTH, dt);

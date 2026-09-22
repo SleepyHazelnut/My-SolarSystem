@@ -189,7 +189,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <!-- 命中区：椭圆 300×300 放在 (301,328) → r=150。放在 Sun 组外面，不随呼吸移动（避免贴边抖动）。 -->
+      <!-- 命中区：圆 r=150（直径 300）放在 (301,328)。放在 Sun 组外面，不随呼吸移动（避免贴边抖动）。 -->
       <circle id="hit" cx="301" cy="328" r="150" fill="transparent" style="pointer-events: all" />
     </svg>
 `;

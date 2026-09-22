@@ -50,7 +50,17 @@ const EASE = {
 
 /* 各特效开关，全部默认开。逐个置 false 即回到改动前的行为（旧写法保留在
    `CLICK_DECOR_FALLBACK` / `RING_TILT` / `EASE.io`）。sparkGlow 实际在 index.js / scene.js 生效，
-   放在这里只是让这一组有统一入口，方便一键全关做对照。 */
+   放在这里只是让这一组有统一入口，方便一键全关做对照。
+
+   ⚠️ **读取时机不统一**，改值前先确认这一条：
+     · `spring`     —— **模块加载期**读（`DEFS` 是模块级常量，见下面的 clickDecor）。
+                        改了要**刷新页面**才生效，不能在控制台里现改现看。
+     · `sparkGlow`  —— mount 期读（index.js 的默认参数）。改完重新挂载，
+                        或用返回值里的 `setGlow()` 当场切。
+     · 其余四个     —— 运行时逐帧读，改完立刻生效。
+   `spring` 是唯一的例外，也不是疏漏：它决定的是**整段关键帧轨道**（弹簧解算 vs 手写衰减），
+   轨道本身在 `DEFS` 里一次性定死；同一段轨道不会中途换实现，逐帧读没有意义。
+   另外四个都是「当帧该用哪个值」的开关，天然属于运行时。 */
 export const FX = {
   spring: true,      // 装饰的甩动改用二阶阻尼弹簧（不再是手写衰减关键帧）
   ringTilt: true,    // 星环 3D 侧转（ring.sx / ring.sy 分离 + 变换顺序修正）
@@ -97,6 +107,8 @@ const CLICK_DECOR_FALLBACK = {
   'leaf.rot':   [[0, 0, 'io2'], [13, 9.4, 'io2'], [27, -10.8, 'io2'], [41, 5.7, 'io'],
                  [55, -2.4, 'io'], [69, 0.8, 'io'], [82, 0, 'lin']],
 };
+/* 三支装饰轨道在这里**一次性**按 `FX.spring` 定死（`DEFS` 在模块加载时求值）。
+   要 A/B 对照得刷新页面 —— 见上面 `FX` 的「读取时机」说明。 */
 const clickDecor = (key) => (FX.spring
   ? springTrack(SPRING[key.split('.')[0]])
   : CLICK_DECOR_FALLBACK[key]);
@@ -623,7 +635,8 @@ function createBlinkLayer() {
    * 每帧把闭眼量叠到 out 上。
    * @param open   1 - w(Clicked)：点击时整张猫脸盖住五官，闭眼图不该浮在猫脸上
    * @param active 是否允许**发起**新的眨眼（已经在眨的那次不受影响，会正常播完）
-   */  function write(dt, out, open, active) {
+   */
+  function write(dt, out, open, active) {
     blink.step(dt, active);
     const b = blink.value() * open;
     if (b <= 0) return;
@@ -633,7 +646,10 @@ function createBlinkLayer() {
     if (BLINK.sink) out['sun.y'] += b * BLINK.sink;
   }
 
-  return { step: blink.step, value: blink.value, fire: blink.fire, write };
+  /* 只对外暴露 mixer 真正用到的两个：`fire`（进入 Hover 时戳一下）与 `write`（逐帧写回）。
+     时序本身的 step / value 由 write 内部驱动，外面不需要 —— 太阳的眨眼是「共享时序 +
+     本文件专属写回」，拆开暴露反而会诱使调用方绕开 write 自己算一遍。 */
+  return { fire: blink.fire, write };
 }
 
 /**
