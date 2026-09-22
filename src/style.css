@@ -29,25 +29,27 @@ body {
   padding: 24px;
 }
 
-.sun-stage {
-  width: min(560px, 60vmin);
-  aspect-ratio: 590 / 600;
+/* 两个舞台共用的交互样式 */
+.sun-stage,
+.earth-stage {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-/* 地球（2026-10-04 第九轮）：viewBox 560×560 —— 球心居中，云绕赤道一圈要的横向余量。
-   ⚠️ 宽高比从 440/560 变成 1，所以**宽度上限要一起抬**，否则地球在屏幕上会缩小 21%：
-      改前 400px × (440/560) → 球体直径 260/440×400 = 236 px
-      改后 508px × (560/560) → 260/560×508 = 236 px（同尺寸）
-      `55vmin` 对应改前的 43vmin（43 × 560/440 ≈ 55）—— 高度上限保持不变。 */
+.sun-stage {
+  width: min(560px, 60vmin);
+  aspect-ratio: 590 / 600;
+}
+
+/* 地球：viewBox 560×560 —— 球心居中，云绕赤道一圈要的横向余量。
+   宽高比从 440/560 变成 1，所以**宽度上限要一起抬**，否则地球在屏幕上会缩小 21%：
+     改前 400px × (440/560) → 球体直径 260/440×400 = 236 px
+     改后 508px × (560/560) → 260/560×508 = 236 px（同尺寸）
+     `55vmin` 对应改前的 43vmin（43 × 560/440 ≈ 55）—— 高度上限保持不变。 */
 .earth-stage {
   width: min(508px, 55vmin);
   aspect-ratio: 560 / 560;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
 
 /* 注入进来的 <svg> 撑满舞台。宽高交给 CSS，viewBox 负责等比缩放 */

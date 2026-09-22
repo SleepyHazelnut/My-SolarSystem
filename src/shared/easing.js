@@ -1,15 +1,10 @@
 /**
- * 缓动原语。
- *
- * ⚠️ 这里只放**算法**，具体曲线的参数是各角色自己调的（见 `sun/anim.js` 的 `EASE`）——
- *    那些数值是美术口径，不该被共享层统一。
+ * 缓动原语。只放**算法** —— 曲线参数是各角色自己的美术口径，见 `sun/anim.js` 的 `EASE`。
  */
 
 /**
  * 三次贝塞尔缓动，与 CSS 的 `cubic-bezier(x1, y1, x2, y2)` 同义。
- * 返回一个 `f(u)`，`u ∈ [0,1] → [0,1]`。
- *
- * 复刻 Rive 的 CubicEaseInterpolator：牛顿迭代求 t，不收敛时二分兜底。
+ * 牛顿迭代求 t，不收敛时二分兜底。
  */
 export function cubicBezier(x1, y1, x2, y2) {
   const val = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
@@ -36,12 +31,12 @@ export function cubicBezier(x1, y1, x2, y2) {
   };
 }
 
-/** smoothstep：`3u²−2u³`，两端切线为 0 的 S 形（地球眨眼的闭合段用它） */
+/** smoothstep `3u²−2u³`：两端切线为 0 的 S 形 */
 export function smoothstep(u) {
   return u * u * (3 - 2 * u);
 }
 
-/** 二次 ease-out：`1−(1−u)²`，起步快、收尾慢（地球眨眼的张开段用它） */
+/** 二次 ease-out `1−(1−u)²`：起步快、收尾慢 */
 export function easeOutQuad(u) {
   return 1 - (1 - u) * (1 - u);
 }

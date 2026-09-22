@@ -17,7 +17,7 @@ if (!earthRoot) {
 const sun = mountSun(root);
 const earth = mountEarth(earthRoot);
 
-// 暴露到 window：回归脚本靠它读状态、手动摆视线
+// 暴露到 window：回归脚本靠它读状态
 window.sun = sun;
 window.earth = earth;
 
