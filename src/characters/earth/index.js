@@ -6,17 +6,14 @@
  *   earth.destroy();   // 拆 ticker / 监听，并清掉注入的 SVG
  *
  * 职责划分（与太阳同一套）：
- *   scene.js  图层结构（静态，10 张原图）
+ *   scene.js  图层结构（静态，11 张原图）
  *   anim.js   几何落点 + 动画参数 + 每帧数值计算（纯逻辑，不碰 DOM）
  *   本文件     把数值写回 DOM 属性、绑定输入、跑逐帧时钟
  *
  * 地球**没有状态机**：呼吸 / 摆动 / 眨眼 / 雨 / 云漂都是程序化正弦，
  * 只有一条「松手触发」的时间线 —— 四个通道同时起跑、各自收：
- *   球体回弹 0.8 s / 叶片轻弹 0.12 + 1.25 s /
- *   云 4.4 环绕（起跳弹叠在头上、蓄力叠在尾上）+ 0.45 到家释放 = 4.85 s / 开心表情 5.65 s。
- * ⚠️ 云的 4.4 s 是**纯环绕**，与 `HAPPY.swingDur` 对齐的是它；
- * 弹跳**不占额外时间** —— 起跳弹与出行同帧起跑、尾段蓄力、到家那一帧立刻释放（见 anim.js 的 ORBIT）。
- * ⚠️ 触发点是**松手**（pointerup）不是按下 —— 按下只做轻微压缩当预备，见下面 `bindPointerInput`。
+ *   球体回弹 0.8 s / 叶片轻弹 0.12 + 1.25 s / 云 4.4 环绕 + 0.45 到家释放 / 开心表情 5.65 s。
+ * ⚠️ 云那 4.4 s 是**纯环绕**（弹跳不占额外时间，叠在头上和尾上）；触发点是**松手**不是按下。
  * 所以这一层不做混合，只做「取数 → 写属性」。
  */
 import gsap from 'gsap';
@@ -30,17 +27,15 @@ import { bindPointerInput } from '../../shared/input.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/* 入场：形状（`dur` / `fromScale` / `dy`）与曲线在 `shared/intro.js`，与太阳**同一组**；
-   地球只多一个 `INTRO_DELAY` —— 太阳先弹入、地球晚 0.15 s 跟上，并排读作级联。
+/* 入场：形状与曲线在 `shared/intro.js`，与太阳**同一组**；地球只多一个 `INTRO_DELAY` ——
+   太阳先弹入、地球晚 0.15 s 跟上，并排读作级联。
 
-   作用点与太阳不同，别照抄：太阳写在 `#sun` 上 —— 它的父组已经 `translate(SUN.x SUN.y)`，
-   局部原点就是太阳中心，所以 `scale` 天然是原地放大。地球的 `#earthBob` 直接坐在 viewBox
-   原点上，`scale` 会绕画布左上角放大（整颗球被甩出去），所以必须自己补一对
-   `translate(CX CY) … translate(-CX -CY)` 把缩放支点搬回球心。
+   作用点与太阳不同，别照抄：太阳写在 `#sun` 上（局部原点就是太阳中心，`scale` 天然原地）。
+   地球的 `#earthBob` 直接坐在 viewBox 原点上，`scale` 会绕画布左上角放大（整颗球被甩出去），
+   所以必须自己补一对 `translate(CX CY) … translate(-CX -CY)` 把缩放支点搬回球心。
 
-   缩放 / 下移 / 淡入都写在 `#earthBob` 上 —— 云、雨、芽、球体、五官都是它的子节点，
-   会自动跟着弹入。命中区 `#earthHit` 在 `#earthBob` **外面**，不跟着缩（否则贴边 hover 会抖）。
-   `prefers-reduced-motion: reduce` 时直接跳到终态（见 mountEarth 里的 REDUCED）。 */
+   缩放 / 下移 / 淡入都写在 `#earthBob` 上 —— 云、雨、芽、球体、五官都是它的子节点，自动跟着弹入。
+   命中区 `#earthHit` 在 `#earthBob` **外面**，不跟着缩（否则贴边 hover 会抖）。 */
 export { INTRO };
 const INTRO_DELAY = 0.15;   // 秒 —— 比太阳晚起跑多久
 
@@ -79,9 +74,11 @@ export function mountEarth(root, { intro = true } = {}) {
     closed: $('#earthEyeClosed'),
   };
   const happyEl = $('#earthFaceHappy');
+  /* 嘴：和三态眼一起吃 (1−happyW) 淡出（开心图自带嘴）。 */
+  const mouthEl = $('#earthMouth');
 
   /* 图层：模板里芽排在球体**之后**（= 球上）。SPROUT.layer = 0 时挪到 #earthBreath
-     最前面 —— 即沉到球体下面。用 DOM 顺序调 z，不是 z-index（SVG 里 z-index 不生效）。 */
+     最前面 —— 即沉到球体下面。用 DOM 顺序调 z（SVG 里 z-index 不生效）。 */
   if (!SPROUT.layer) {
     breathEl.insertBefore(sproutWrapEl, breathEl.firstChild);
   }
@@ -111,13 +108,13 @@ export function mountEarth(root, { intro = true } = {}) {
   const ac = new AbortController();
 
   /* 输入：enter/exit → hover，down/up → pressed。
-     ⚠️ **按下只做预备，结果全在松手**（用户 2026-10-05 给的五阶段表）：
-       · 按下 → 只有「轻微压缩」（`EARTH.pressRate` 决定多快压到位，≈90 ms 读满）。
+     ⚠️ **按下只做预备，结果全在松手**：
+       · 按下 → 只有「轻微压缩」（`pressRate` 决定多快压到位，≈90 ms 读满）。
          **不切表情、不启动云** —— 否则所有效果同时炸开，按下那一下没有预备感；
        · 松手 → 球体回弹 + 叶片轻弹 + 云出门 + 开心交叉淡入（四个 `trigger*` 一起）。
      `up` 挂 window：在地球上按下、移出去再松手也要清掉 pressed。
-     ⚠️ 指针中途移出球体（`onLeave`）会把 `pressed` 清掉 → 那次松手**不触发**，
-     读作「取消」；所以 `onUp` 里要先看一眼 `pressed` 还在不在。 */
+     ⚠️ 指针中途移出球体（`onLeave`）会把 `pressed` 清掉 → 那次松手**不触发**，读作「取消」；
+     所以 `onUp` 里要先看一眼 `pressed` 还在不在。 */
   let hovered = false, pressed = false;
 
   /* 「松手」那一套 —— 触发点与探针共用，免得两处漂移 */
@@ -138,17 +135,16 @@ export function mountEarth(root, { intro = true } = {}) {
       pressed = false;
       release();
     },
-    /* ⚠️ 这两条太阳也有，地球当初漏了 —— 少了它们，按下后**窗口失焦**（Alt+Tab）或触摸被
-       `pointercancel` 接管时 `pressed` 会永久停在 true，球卡在压扁 14% 的状态
-       （`onLeave` 在这种情况下不一定触发），要等下一次成功的「按下 + 松手」才复位。 */
+    /* ⚠️ 少了这两条，按下后**窗口失焦**（Alt+Tab）或触摸被 `pointercancel` 接管时
+       `pressed` 会永久停在 true，球卡在压扁 14% 的状态（`onLeave` 在这种情况下不一定触发），
+       要等下一次成功的「按下 + 松手」才复位。 */
     onCancel: () => { pressed = false; },
     onBlur: () => { pressed = false; },
   });
 
   /* 上一帧算出的全部数值（只读快照），给探针用。
-     探针**不要**靠 `performance.now()` 反推进度：截图会把 rAF 卡住 ~300 ms，而
-     `clampDt` 上限 0.1 s，每卡一次动画时钟就丢 ~0.2 s，墙钟与动画进度会越差越远。
-     读快照里的 `orbitU` 才是动画自己的时间轴。 */
+     探针**不要**靠 `performance.now()` 反推进度：截图会把 rAF 卡住 ~300 ms，而 `clampDt`
+     上限 0.1 s，每卡一次动画时钟就丢 ~0.2 s，墙钟与动画进度会越差越远。读快照里的 `orbitU`。 */
   let lastV = null;
 
   /* 入场进度（见 shared/intro.js）。`prefers-reduced-motion: reduce` 时按已播完处理，直接是终态。
@@ -165,14 +161,14 @@ export function mountEarth(root, { intro = true } = {}) {
     lastV = v;
 
     /* 入场：只在没走完 `INTRO.dur` 期间生效，结束后 `k` 恒为 1、`dy` 恒为 0、opacity 清空 ——
-       画面逐位回到没有入场时的样子（`introTf` 也退化成空串，字符串与入场前逐字节相同）。 */
+       画面逐位回到没有入场时的样子（`introTf` 也退化成空串）。 */
     const iv = introFx.current();
     const ik = iv.k, idy = iv.dy;
     if (iv.opacity === null) { if (sceneEl.style.opacity) sceneEl.style.opacity = ''; }
     else sceneEl.style.opacity = iv.opacity;
 
     /* 浮动 + 左右摆：绕**球心**转，所以读作「站着的球在晃」而不是原地自转。
-       入场的缩放叠在同一条 transform 上 —— 支点要自己搬回球心（见 INTRO 的注释）。 */
+       入场的缩放叠在同一条 transform 上 —— 支点要自己搬回球心（见 INTRO 那段）。 */
     const introTf = ik === 1 ? ''
       : `translate(${CX} ${CY}) scale(${ik.toFixed(6)}) translate(${-CX} ${-CY}) `;
     bobEl.setAttribute('transform',
@@ -193,7 +189,7 @@ export function mountEarth(root, { intro = true } = {}) {
 
     /* 云：位置 + 倾角 + 沿横向的非等比拉伸。
        顺序 = `translate(位置) rotate(倾角) scale(sx sy) translate(-素材中心)`：
-       缩放轴挂在**倾角之后**，拉伸方向跟着云的姿态走（读作被拉扁）；圆心是素材坐标，末尾仍要 translate(-cx -cy)。
+       缩放轴挂在**倾角之后**，拉伸方向跟着云的姿态走；圆心是素材坐标，末尾仍要 translate(-cx -cy)。
        云有**两份** <image>（同一张图、同一份 transform），只有显示哪一个不同：
        `behind` = 回程弧那段 → 用排在球体**之前**的那份（画在球下）。
        切换点在最左点，那一刻云离球体还有 29 px，所以切换本身看不见。
@@ -211,11 +207,9 @@ export function mountEarth(root, { intro = true } = {}) {
       cloudBackEl.style.display = behindNow ? '' : 'none';
     }
 
-    /* 雨：每颗从云底落到芽顶，头尾各 15% 淡入淡出。
-       下落时纵向拉长、横向略收 —— 读作越落越快。雨竖直落，不带风。
-       ⚠️ `#earthRain` 挂在 `#earthBreath` **外面**（用户 2026-10-06：「雨就不用有呼吸了」）
-       —— 雨不跟着呼吸一张一缩、也不跟着点击压扁，只跟着 `#earthBob` 浮动 / 摆动。
-       所以这里写的就是画面上看到的位置，不需要按呼吸倍率反算。 */
+    /* 雨：每颗从云底落到芽顶，头尾各 15% 淡入淡出，下落时纵向拉长、横向略收。
+       ⚠️ `#earthRain` 挂在 `#earthBreath` **外面** —— 雨不跟着呼吸一张一缩、也不跟着点击压扁，
+       只跟着 `#earthBob` 浮动 / 摆动。所以这里写的就是画面上看到的位置，不用按呼吸倍率反算。 */
     for (let i = 0; i < dropEls.length; i++) {
       const o = v.drops[i];
       dropEls[i].setAttribute('transform',
@@ -225,19 +219,15 @@ export function mountEarth(root, { intro = true } = {}) {
     }
 
     /* 表情：点击变「开心」（时间线在 anim.js 的 HAPPY 那段）。
-       ① **交叉淡入**：三态眼 × (1−happyW)、开心图 × happyW。
-       ② **点头**：整层 `#earthFace` 平移 (happyDX, happyDY) + 倾斜 happyRot —— 走的是 anim.js
-          里 `HAPPY_PATH` 那张表（**用户自己在演示台演的**，见那边注释）**加同相的倾角**。
-          开心图和三态眼都在这个组里，所以两层一起动，交叉淡入期间不会出现
-          「一张脸在动、另一张不动」。
+       ① **交叉淡入**：三态眼 × (1−happyW)、开心图 × happyW（见下面）。
+       ② **点头**：整层 `#earthFace` 平移 (happyDX, happyDY) + 倾斜 happyRot —— 走 anim.js 的
+          `HAPPY_PATH` 那张表 + 同相倾角。开心图和三态眼都在这个组里，所以两层一起动。
           位移量是 **viewBox 坐标**：#earthFace 在 #earthBreath 里，而呼吸缩放 ≈ 1.00，
-          所以这里写的 (dx, dy) 就是画面上看到的位移。
-          倾斜支点用 `FACE_C`（脸的中心，viewBox 坐标）—— 支点放球心会额外把脸平推，
-          把轨迹搅乱。`rotate` 正角 = 顺时针，与 anim.js 的 happyRot 同向。
-       ③ **整颗球跟着歪**：球体与小芽绕**球心**转 ballRot（= 同一个 happyRot 的 tiltK 份）——
-          大陆、云纹、轮廓一起动，读作「真实点头」。
+          所以写的 (dx, dy) 就是画面上看到的位移。倾斜支点用 `FACE_C`（脸的中心）——
+          支点放球心会额外把脸平推，把轨迹搅乱。`rotate` 正角 = 顺时针。
+       ③ **整颗球跟着歪**：球体与小芽绕**球心**转 ballRot（同一个 happyRot 的 tiltK 份）。
           ⚠️ 五官**不在**这两个组里：它自己已经有同角度的倾斜，再进组会多吃一次绕球心的弧位移
-          （脸离球心 43 px，9° 就是 7 px），把用户演的位移顶偏。 */
+          （脸离球心 43 px，9° 就是 7 px），把轨迹顶偏。 */
     faceEl.setAttribute('transform',
       `translate(${v.happyDX.toFixed(3)} ${v.happyDY.toFixed(3)}) ` +
       `rotate(${v.happyRot.toFixed(4)} ${FACE_C.x.toFixed(2)} ${FACE_C.y.toFixed(2)})`);
@@ -252,6 +242,7 @@ export function mountEarth(root, { intro = true } = {}) {
     eyeEls.open.setAttribute('opacity', (wOpen * k).toFixed(4));
     eyeEls.half.setAttribute('opacity', (wHalf * k).toFixed(4));
     eyeEls.closed.setAttribute('opacity', (wClosed * k).toFixed(4));
+    mouthEl.setAttribute('opacity', k.toFixed(4));
     happyEl.setAttribute('opacity', v.happyW.toFixed(4));
 
   }
