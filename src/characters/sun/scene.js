@@ -1,9 +1,8 @@
 /**
  * SVG 场景：太阳角色的图层结构（唯一一份）。
  *
- * 1) **绘制顺序是反的**（SVG 后声明 = 最上层）。自下而上：光圈 → 本体（含烘死的嘴与腮红）→ 眼睛
- *    · 光圈画在**本体之上**：花瓣压在球体边缘上，缝里透出本体。反过来（光圈在下）
- *      花瓣会被本体挡住大半，只剩短短一截。
+ * 1) **绘制顺序是反的**（后声明 = 最上层）。自下而上：光圈 → 本体（含烘死的嘴与腮红）→ 眼睛
+ *    · 光圈在**本体之上**：花瓣压在球体边缘上，缝里透出本体；反过来花瓣会被本体挡住大半。
  *    · 眼睛排最后 = 最上层，三张眼图靠 opacity 交叉淡入（相邻两态权重和恒为 1）。
  *    · 嘴与腮红**不是图层** —— 烘在本体图上。
  *
@@ -11,22 +10,20 @@
  *    `scale(K) translate(-768 -768)`，天然同心。K 与两个支点都在 anim.js。
  *
  * 3) 每帧写绝对值的只有三个组，都**绕画布中心**（= #sun 的局部原点）：
- *      #sunBodyWrap   translate(0 dy)                  ← **只有悬停抬升**，本体不缩放、不呼吸
+ *      #sunBodyWrap   translate(0 dy)      ← **只有悬停抬升**，本体不缩放、不呼吸
  *      #sunRays       scale(K) rotate(rot) scale(s) translate(-768 -768)   ← 呼吸 + 摇摆在这层
  *      #sunEyes       opacity 三选一（静态变换，见 anim.js 的 EYE_T）
- *    ⚠️ 眼睛挂在 #sunBodyWrap **里面**：悬停上浮时眼睛跟着本体一起走，
- *    否则眼与本体上烘死的嘴会错开。
+ *    ⚠️ 眼睛挂在 #sunBodyWrap **里面**：悬停上浮时眼睛跟着本体走，否则眼与烘死的嘴会错开。
  *
  * 4) 命中区 <circle id="hit"> 故意放在 #sun **外面**：不跟着悬停上下动，否则贴边 hover 会抖。
  *
- * 素材 5 张 PNG，未重绘、未转矢量：
- *   本体 / 光圈在 `src/assets/sun/`；三态眼在 `src/assets/eye/`，**与地球共用**。
+ * 素材 5 张 PNG，未重绘、未转矢量：本体 / 光圈在 `src/assets/sun/`，
+ * 三态眼在 `src/assets/eye/`，**与地球共用**。
  *
- * `data-name` 是给 `_draft/character-tuner.html`（配饰图层调试页）读的**中文图层名**，
- * 不参与渲染。新角色照着写，调试页自动就能显示中文。
+ * `data-name` 是给 `_draft/character-tuner.html` 读的**中文图层名**，不参与渲染。
  *
- * 下面整块是**模板字符串**：注释里不能出现反引号（会提前截断 → rollup 报 "Expected a semicolon"），
- * 也不能出现裸的 ${（会被当插值求值）。改完**必跑 `npm run build`**。
+ * ⚠️ 下面整块是**模板字符串**：注释里不能出现反引号（会提前截断 → rollup 报 "Expected a semicolon"），
+ * 也不能出现裸的 ${。改完**必跑 `npm run build`**。
  */
 import eye_closed from '../../assets/eye/eye_closed.png';
 import eye_half from '../../assets/eye/eye_half.png';

@@ -1,18 +1,13 @@
 /**
  * 月球角色：DOM 与时钟。
  *
- * 用法：
- *   const moon = mountMoon(document.getElementById('moon'));
- *   moon.destroy();   // 拆 ticker / 监听，并清掉注入的 SVG
- *
- * 职责划分：
  *   scene.js  图层结构（静态，2 张原图：本体 / 睡帽）
  *   anim.js   程序化正弦（纯逻辑）
  *   本文件     写回 DOM 属性、输入绑定、逐帧时钟
  *
- * 入场：形状与曲线在 `shared/intro.js`（三个角色**同一组参数**）。
- * 缩放写在 `#moon` 上，得自己补一对 translate 把支点搬回球心，
- * 否则整颗球绕画布左上角放大、被甩出去。见 apply() 里的 introTf。
+ * 入场：形状与曲线在 `shared/intro.js`（三个角色**同一组参数**）。缩放写在 `#moon` 上，
+ * 得自己补一对 translate 把支点搬回球心，否则整颗球绕画布左上角放大、被甩出去。
+ * 见 apply() 里的 introTf。
  */
 import gsap from 'gsap';
 import { SVG_SCENE } from './scene.js';

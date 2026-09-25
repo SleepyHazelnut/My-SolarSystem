@@ -1,31 +1,28 @@
 /**
  * SVG 场景：月球角色的图层结构（唯一一份）。
  *
- * 1) **绘制顺序是反的**（SVG 后声明 = 最上层）。自下而上：本体 → 睡帽。
- *    ⚠️ 两张素材**各自独立构图**，不是同一张合成图的两半（球那张撑满画布、帽子那张在画布中间）。
- *    所以「共用 MOON_T 就自动对齐」是错的 —— 照原样叠起来帽子落在球心附近。
- *    落位差由 `CAP_FIT` 补，见下。
+ * 1) **绘制顺序是反的**（后声明 = 最上层）。自下而上：本体 → 睡帽。
+ *    ⚠️ 两张素材**各自独立构图**（球那张撑满画布、帽子那张在画布中间），不是同一张合成图的两半 ——
+ *    所以「共用 MOON_T 就自动对齐」是错的，照原样叠起来帽子落在球心附近。落位差由 `CAP_FIT` 补。
  *
  * 2) 五官（闭着的笑眼 + 腮红）**不是图层**，烘在本体图上 —— 所以月球不眨眼、不换表情。
  *
- * 3) 每帧写绝对值的只有两个组，缩放都**绕球心**（不是绕 viewBox 原点）：
+ * 3) 每帧写绝对值的只有两个组，缩放都**绕球心**：
  *      #moonBob   translate(dx dy) translate(CX CY) scale(sx sy) translate(-CX -CY)
  *      #moonCap   rotate(capRot CX CY)                ← 睡帽自己再晃一点
  *    #moonCap 外面套一层**静态**对位组 `CAP_FIT`（垫在 #moonBob 与 #moonCap 之间），
  *    它在 #moonBob 坐标系里做位移 / 旋转 / 缩放，所以不跟着 capRot 一起转。
  *    ⚠️ 本体与帽子必须**一起**缩（帽子挂在 #moonBob 里），否则呼吸时帽檐和头顶会错开一条缝。
- *    ⚠️ 缩放不能省掉那对 `translate(CX CY) … translate(-CX -CY)` —— 直接写 scale 是绕
- *    viewBox 左上角缩，球会一边放大一边往左上跑。
+ *    ⚠️ 不能省掉那对 `translate(CX CY) … translate(-CX -CY)` —— 直接写 scale 是绕 viewBox
+ *    左上角缩，球会一边放大一边往左上跑。
  *
  * 4) 命中区 <circle id="hit"> 放在 #moon **外面**：不跟着呼吸上下动，否则贴边 hover 会抖。
  *
  * 素材 2 张 PNG，未重绘、未转矢量，都在 `src/assets/moon/`。
+ * `data-name` 是给 `_draft/character-tuner.html` 读的**中文图层名**，不参与渲染。
  *
- * `data-name` 是给 `_draft/character-tuner.html`（配饰图层调试页）读的**中文图层名**，
- * 不参与渲染。新角色照着写，调试页自动就能显示中文。
- *
- * 下面整块是**模板字符串**：注释里不能出现反引号（会提前截断 → rollup 报 "Expected a semicolon"），
- * 也不能出现裸的 ${（会被当插值求值）。改完**必跑 `npm run build`**。
+ * ⚠️ 下面整块是**模板字符串**：注释里不能出现反引号（会提前截断 → rollup 报 "Expected a semicolon"），
+ * 也不能出现裸的 ${。改完**必跑 `npm run build`**。
  */
 import moon_base from '../../assets/moon/moon_base.png';
 import nightcap from '../../assets/moon/nightcap.png';

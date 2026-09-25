@@ -1,17 +1,12 @@
 /**
  * 太阳角色：DOM 与时钟。
  *
- * 用法：
- *   const sun = mountSun(document.getElementById('sun'));
- *   sun.destroy();   // 拆 ticker / 监听，并清掉注入的 SVG
- *
- * 职责划分：
  *   scene.js  图层结构（静态，5 张原图：本体 / 光圈 / 三态眼）
  *   anim.js   程序化正弦（纯逻辑，没有状态机）
  *   本文件     写回 DOM 属性、输入绑定、逐帧时钟
  *
- * 入场：形状与曲线在 `shared/intro.js`（与地球**同一组参数**）。
- * 缩放写在 `#sun` 上 —— 它的局部原点就是太阳中心，所以是原地放大，不用像地球那样搬支点。
+ * 入场：形状与曲线在 `shared/intro.js`（与地球**同一组参数**）。缩放写在 `#sun` 上 ——
+ * 它的局部原点就是太阳中心，所以是原地放大，不用像地球那样搬支点。
  */
 import gsap from 'gsap';
 import { SVG_SCENE } from './scene.js';
