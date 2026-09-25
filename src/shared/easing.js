@@ -41,8 +41,7 @@ export function easeOutQuad(u) {
   return 1 - (1 - u) * (1 - u);
 }
 
-/** 回弹 ease-out-back（Penner，c1 = 1.70158）：末段**冲过 1 再落回**，峰值约 1.10 ——
- *  读起来是「弹一下站住」。角色的入场（`sun/index.js` / `earth/index.js` 的 INTRO）用它。 */
+/** 回弹 ease-out-back（Penner，c1 = 1.70158）：末段冲过 1 再落回，峰值约 1.10。入场用它。 */
 export function easeOutBack(u) {
   if (u <= 0) return 0;
   if (u >= 1) return 1;
