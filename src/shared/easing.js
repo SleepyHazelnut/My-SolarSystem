@@ -31,16 +31,6 @@ export function cubicBezier(x1, y1, x2, y2) {
   };
 }
 
-/** smoothstep `3u²−2u³`：两端切线为 0 的 S 形 */
-export function smoothstep(u) {
-  return u * u * (3 - 2 * u);
-}
-
-/** 二次 ease-out `1−(1−u)²`：起步快、收尾慢 */
-export function easeOutQuad(u) {
-  return 1 - (1 - u) * (1 - u);
-}
-
 /** 回弹 ease-out-back（Penner，c1 = 1.70158）：末段冲过 1 再落回，峰值约 1.10。入场用它。 */
 export function easeOutBack(u) {
   if (u <= 0) return 0;

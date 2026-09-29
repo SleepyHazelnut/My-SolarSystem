@@ -7,12 +7,12 @@
  *    · 头顶光环与 `sun_rays.png` 已移除。再加一层时排在本体之后，并给它 `data-name`。
  *
  * 2) 本体与三态眼都是 1536 画布，且眼图是从本体上原样抠出来的（见 `_draft/_rebuild-eyes.py`）——
- *    内容已在画布上的正确位置，所以两层共用同一份 `scale(K) translate(-768 -768)`，
- *    无需任何对位修正。K 在 anim.js。
+ *    内容已在画布上的正确位置，所以两层共用同一份 `CANVAS_T`（定义在 anim.js），
+ *    无需任何对位修正。
  *
  * 3) 每帧写 transform 的只有两个组：
  *      #sun          入场缩放。局部原点即太阳中心，`scale` 原地生效
- *      #sunBodyWrap  呼吸 + 悬停，绕球心缩放与上浮
+ *      #sunBodyWrap  呼吸 + 悬停 + 按压，绕球心缩放与上浮
  *    眼睛挂在 #sunBodyWrap 内，本体缩放 / 上浮时随之移动，不会与烘死的嘴错开。
  *
  * 4) 命中区 <circle id="hit"> 放在 #sun 之外，不随悬停移动，避免贴边 hover 抖动。
@@ -31,9 +31,9 @@ import eye_half from '../../assets/eye/eye_half.png';
 import eye_open from '../../assets/eye/eye_open.png';
 import sun_base from '../../assets/sun/sun_base.png';
 
-import { BODY_C, EYE_T, K, SUN } from './anim.js';
+import { BODY_C, CANVAS_T, SUN } from './anim.js';
 
-export const IMG = { eye_closed, eye_half, eye_open, sun_base };
+const IMG = { eye_closed, eye_half, eye_open, sun_base };
 
 export const SVG_SCENE = `
     <svg id="scene" viewBox="0 0 528 512" role="img"
@@ -44,11 +44,11 @@ export const SVG_SCENE = `
 
           <g id="sunBodyWrap">
             <image id="sunBody" data-name="本体" href="${IMG.sun_base}" x="0" y="0" width="1536" height="1536"
-                   transform="scale(${K}) translate(-768 -768)" />
+                   transform="${CANVAS_T}" />
 
             <!-- 三态眼：各一层，靠 opacity 交叉淡入，初始为「睁」。
                  与本体同一画布、同一变换，位置即脸上原位置。 -->
-            <g id="sunEyes" data-name="眼睛" transform="${EYE_T}">
+            <g id="sunEyes" data-name="眼睛" transform="${CANVAS_T}">
               <image id="eyeClosed" data-name="眼睛·闭" href="${IMG.eye_closed}" x="0" y="0" width="1536" height="1536"
                      opacity="0" />
               <image id="eyeHalf" data-name="眼睛·半闭" href="${IMG.eye_half}" x="0" y="0" width="1536" height="1536"

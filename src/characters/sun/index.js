@@ -68,5 +68,5 @@ export const mountSun = defineCharacter({
   }),
 });
 
-/* 点击反馈未实现。要加就在 `anim.js` 里加一条程序化波形（`core/motions.js` 的 `jitter` 等），
-   并在挂载器上接 `onDown` / `onUp` —— 挂载器目前只接 hover。 */
+/* 点击反馈由 `anim.js` 的 `setDown()` 驱动，本文件不额外接线 —— 挂载器把
+   pointerdown / pointerup 转发过去，姿态照旧走 `bodySX` / `bodySY` / `bodyDY` 三个量。 */

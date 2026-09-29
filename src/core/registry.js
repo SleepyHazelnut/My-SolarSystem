@@ -18,11 +18,6 @@ export function registerCharacter(name, mount, meta = {}) {
   REGISTRY.set(name, { mount, meta });
 }
 
-/** 已注册的名字（探针 / 调试用） */
-export function registeredNames() {
-  return [...REGISTRY.keys()];
-}
-
 /** 写入舞台尺寸与角色专属类名。
  *  · 尺寸写行内样式，`style.css` 里不需要每个角色一条规则；
  *  · 类名 `<名字>-stage` 自动加，`_draft/` 下的探针与调试页靠它选元素。 */
