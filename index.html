@@ -8,11 +8,10 @@
 </head>
 <body>
   <main class="hero">
-    <!-- 三个角色的 SVG 分别由 src/characters/{sun,earth,moon}/index.js 注入；aria-label 写在注入的 <svg> 上 -->
+    <!-- 角色由 src/core/registry.js 按 data-character 自动挂载。
+         舞台尺寸（宽高比 + 宽度）在 src/main.js 的 registerCharacter 一行给出。 -->
     <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
-    <div class="sun-stage" id="sun"></div>
-    <div class="earth-stage" id="earth"></div>
-    <div class="moon-stage" id="moon"></div>
+    <div class="stage" data-character="sun"></div>
   </main>
 
   <script type="module" src="/src/main.js"></script>

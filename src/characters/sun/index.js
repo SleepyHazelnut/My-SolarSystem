@@ -1,113 +1,72 @@
 /**
- * 太阳角色：DOM 与时钟。
+ * 太阳角色：把动画写进 DOM。
  *
- *   scene.js  图层结构（静态，5 张原图：本体 / 光圈 / 三态眼）
- *   anim.js   程序化正弦（纯逻辑，没有状态机）
- *   本文件     写回 DOM 属性、输入绑定、逐帧时钟
+ *   scene.js  图层结构（静态，4 张原图：本体 + 三态眼）
+ *   anim.js   动作（纯逻辑，由 `core/motions.js` 的原语叠出）
+ *   本文件    太阳专属部分：哪个组写什么 transform、入场支点在哪
  *
- * 入场：形状与曲线在 `shared/intro.js`（与地球**同一组参数**）。缩放写在 `#sun` 上 ——
- * 它的局部原点就是太阳中心，所以是原地放大，不用像地球那样搬支点。
+ * 注入 SVG / 入场进度 / 指针输入 / 逐帧时钟 / 首帧 / destroy 都在 `core/character.js`，
+ * 这里只提供 `setup()`。
+ *
+ * 入场形状与曲线在 `shared/intro.js`。缩放写在 `#sun` 上，其局部原点即太阳中心，原地放大。
  */
-import gsap from 'gsap';
 import { SVG_SCENE } from './scene.js';
-import { K, createSunAnim } from './anim.js';
-import { clampDt } from '../../shared/clock.js';
-import { INTRO, createIntro } from '../../shared/intro.js';
-import { bindPointerInput } from '../../shared/input.js';
+import { BODY_C, createSunAnim } from './anim.js';
+import { defineCharacter } from '../../core/character.js';
 
-/** 入场：形状与曲线在 `shared/intro.js`，地球用**同一组**。
- *  `prefers-reduced-motion: reduce` 时直接跳到终态（见下面的 REDUCED）。 */
-export { INTRO };
+/** 入场参数转出，保持既有调用方与 `_draft/` 探针可用。 */
+export { INTRO } from '../../shared/intro.js';
 
-export function mountSun(root, { intro = true } = {}) {
-  if (!root) throw new Error('mountSun: 缺少挂载容器');
+export const mountSun = defineCharacter({
+  scene: SVG_SCENE,
+  createAnim: createSunAnim,
 
-  root.innerHTML = SVG_SCENE;
+  setup(root) {
+    const sunEl = root.querySelector('#sun');
+    const sceneEl = root.querySelector('#scene');
+    const bodyWrapEl = root.querySelector('#sunBodyWrap');
+    /* 三态眼按名字取，不用数组下标 —— eyeWeights() 返回 [open, half, closed]，
+       DOM 顺序或权重顺序变动时不致静默错位。 */
+    const eyeEls = {
+      open: root.querySelector('#eyeOpen'),
+      half: root.querySelector('#eyeHalf'),
+      closed: root.querySelector('#eyeClosed'),
+    };
 
-  /* 所有 window 级监听统一挂到它上面，destroy() 时一次清干净 */
-  const ac = new AbortController();
-  const anim = createSunAnim();
+    return {
+      apply(v, iv) {
+        /* 入场：仅在 `INTRO.dur` 未走完时生效；结束后 k 恒为 1、dy 恒为 0、opacity 清空，
+           画面与无入场时逐位一致（见 `shared/intro.js`）。 */
+        if (iv.opacity === null) { if (sceneEl.style.opacity) sceneEl.style.opacity = ''; }
+        else sceneEl.style.opacity = iv.opacity;
 
-  const $ = (s) => root.querySelector(s);
-  const sunEl = $('#sun');
-  const sceneEl = $('#scene');
-  const bodyWrapEl = $('#sunBodyWrap');
-  const raysEl = $('#sunRays');
-  const hitEl = $('#hit');
-  /* 三态眼按名字对上 —— eyeWeights() 返回 [open, half, closed]，这里不靠数组下标，
-     免得将来挪了 DOM 顺序或改了权重顺序就静默错位。 */
-  const eyeEls = {
-    open: $('#eyeOpen'),
-    half: $('#eyeHalf'),
-    closed: $('#eyeClosed'),
-  };
+        /* 入场缩放与下移叠在 #sun 上（原点 = 太阳中心，原地放大）。 */
+        sunEl.setAttribute('transform',
+          `scale(${iv.k.toFixed(6)}) translate(0 ${iv.dy.toFixed(4)})`);
 
-  const REDUCED = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  const introFx = createIntro({ enabled: intro && !REDUCED });
+        /* 本体：呼吸（绕球心缩放）+ 悬停上浮。
+           眼睛是 #sunBodyWrap 的子节点，随之一起移动，不会与烘死的嘴错开。 */
+        bodyWrapEl.setAttribute('transform',
+          `translate(0 ${v.bodyDY.toFixed(4)}) ` +
+          `translate(${BODY_C.x.toFixed(3)} ${BODY_C.y.toFixed(3)}) ` +
+          `scale(${v.bodySX.toFixed(6)} ${v.bodySY.toFixed(6)}) ` +
+          `translate(${(-BODY_C.x).toFixed(3)} ${(-BODY_C.y).toFixed(3)})`);
 
-  function apply(v) {
-    /* 入场：只在没走完 `INTRO.dur` 期间生效，结束后 `k` 恒为 1、`dy` 恒为 0、opacity 清空 ——
-       画面逐位回到没有入场时的样子（见 `shared/intro.js`）。 */
-    const iv = introFx.current();
-    const ik = iv.k, idy = iv.dy;
-    if (iv.opacity === null) { if (sceneEl.style.opacity) sceneEl.style.opacity = ''; }
-    else sceneEl.style.opacity = iv.opacity;
+        /* 眨眼：三态眼按权重切 opacity。相邻两段权重和恒为 1，不会闪。 */
+        const [wOpen, wHalf, wClosed] = v.eyes;
+        eyeEls.open.setAttribute('opacity', wOpen.toFixed(4));
+        eyeEls.half.setAttribute('opacity', wHalf.toFixed(4));
+        eyeEls.closed.setAttribute('opacity', wClosed.toFixed(4));
+      },
+    };
+  },
 
-    /* 入场的缩放叠在 #sun 上（原点 = 太阳中心），上浮叠在 #sunBodyWrap 上。 */
-    sunEl.setAttribute('transform', `scale(${ik.toFixed(6)})`);
-
-    /* 本体：**只跟着悬停上浮**，缩放恒为 1 —— 呼吸已经挪到光圈上。 */
-    bodyWrapEl.setAttribute('transform', `translate(0 ${(v.bodyDY + idy).toFixed(4)})`);
-
-    /* 光圈：scale(K) → rotate(rot) → scale(rs) → translate(-768 -768)。
-       rotate 夹在两次 scale 中间（写最前面会绕 viewBox 原点转，整圈花瓣飞出去）。 */
-    raysEl.setAttribute('transform',
-      `scale(${K}) rotate(${v.raysRot.toFixed(4)}) ` +
-      `scale(${v.raysS.toFixed(6)}) translate(-768 -768)`);
-
-    /* 眨眼：三态眼按权重切 opacity（相邻两段权重和恒为 1，所以不会闪）。 */
-    const [wOpen, wHalf, wClosed] = v.eyes;
-    eyeEls.open.setAttribute('opacity', wOpen.toFixed(4));
-    eyeEls.half.setAttribute('opacity', wHalf.toFixed(4));
-    eyeEls.closed.setAttribute('opacity', wClosed.toFixed(4));
-  }
-
-  /* 点击反馈**还没做**。所以这里不传 onDown / onUp —— 接上去时再加，别去恢复旧的关键帧表。 */
-  bindPointerInput(hitEl, ac, {
-    onEnter: () => anim.setHover(true),
-    onLeave: () => anim.setHover(false),
-  });
-
-  let last = 0;
-  function tick(time, deltaMs) {
-    const dt = clampDt(deltaMs);
-    introFx.step(dt);
-    last = anim.step(dt);
-    apply(last);
-    void time;
-  }
-  gsap.ticker.add(tick);
-
-  /* 首帧：立刻按入场的**起始姿态**写一次（起始缩放 + 下移 + opacity 0）。
-     不写的话会先以**满尺寸、不透明**画一帧，再跳到 0.62 —— 闪一下。 */
-  tick(0, 0);
-
-  return {
-    ready: true,
-    /** 是否播了入场（`prefers-reduced-motion: reduce` 或 `mountSun(root, { intro: false })` 时为 false） */
-    intro: introFx.playing,
+  /* 探针接口（`_draft/` 用）：挂载器不认识的自己带上。 */
+  extra: (anim) => ({
     get blink() { return anim.blinkValue(); },
-    /** 探针：上一帧的完整数值快照（只读） */
-    get last() { return last; },
-    /** 立刻眨一次 */
     blinkNow() { anim.blinkNow(); },
-    /** 把一组值**直接写进 DOM**（绕过动画实例）。逐帧截图脚本靠它回放 Node 侧算出的真值 ——
-        走这里而不是在脚本里重抄一遍 apply()，是为了避免变换写法两边漂移。 */
-    applyValues(v) { apply(v); },
-    destroy() {
-      gsap.ticker.remove(tick);
-      ac.abort();
-      root.innerHTML = '';
-    },
-  };
-}
+  }),
+});
+
+/* 点击反馈未实现。要加就在 `anim.js` 里加一条程序化波形（`core/motions.js` 的 `jitter` 等），
+   并在挂载器上接 `onDown` / `onUp` —— 挂载器目前只接 hover。 */

@@ -29,48 +29,17 @@ body {
   padding: 24px;
 }
 
-/* 三个舞台共用的交互样式 */
-.sun-stage,
-.earth-stage,
-.moon-stage {
+/* 角色共用：只有交互样式。
+   ⚠️ 尺寸不在这里 —— 宽高比（viewBox）与宽度（stageWidth）由 `main.js` 的
+   `registerCharacter` 写进行内样式。当前只有太阳：viewBox 528×512。 */
+.stage {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-/* 三个角色并排 —— 宽度按**屏幕上球体一样大**反推，不是按 viewBox 等分：
-     太阳  本体直径 399 / viewBox 680 = 0.587  → 415px 舞台 → 屏幕上 243px
-     地球  球体直径 260 / viewBox 560 = 0.464  → 380px 舞台 → 屏幕上 176px
-     月球  球体直径 260 / viewBox 440 = 0.591  → 300px 舞台 → 屏幕上 177px
-   地球与月球的球一样大（都是 260 单位、同一套舞台换算），太阳按设计本来就更大一号。
-   括号里那个 vw 是窄屏兜底 —— 三个一起缩，够窄时 .hero 的 flex-wrap 会自动换行。
-   ⚠️ 太阳的 viewBox 2026-10-06 从 590×600 放到 680×664（光圈放大后装不下，见 scene.js 的
-   RAYS_FIT）—— 舞台宽度和 vw 兜底都按 680/590 同比例抬了，屏幕上球体仍是 243px。 */
-.sun-stage {
-  width: min(415px, 31vw);
-  aspect-ratio: 680 / 664;
-}
-
-/* 地球：viewBox 560×560 —— 球心居中，云绕赤道一圈要的横向余量。
-   宽高比从 440/560 变成 1，所以**宽度上限要一起抬**，否则地球在屏幕上会缩小 21%：
-     改前 400px × (440/560) → 球体直径 260/440×400 = 236 px
-     改后 508px × (560/560) → 260/560×508 = 236 px（同尺寸）
-     `55vmin` 对应改前的 43vmin（43 × 560/440 ≈ 55）—— 高度上限保持不变。 */
-.earth-stage {
-  width: min(380px, 29vw);
-  aspect-ratio: 560 / 560;
-}
-
-/* 月球：viewBox 440×440 —— 一颗球加一顶帽子，构图上下不伸展，所以画面比方。 */
-.moon-stage {
-  width: min(300px, 23vw);
-  aspect-ratio: 440 / 440;
-}
-
 /* 注入进来的 <svg> 撑满舞台。宽高交给 CSS，viewBox 负责等比缩放 */
-.sun-stage svg,
-.earth-stage svg,
-.moon-stage svg {
+.stage svg {
   display: block;
   width: 100%;
   height: 100%;
