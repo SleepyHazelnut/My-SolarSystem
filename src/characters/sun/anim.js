@@ -15,6 +15,12 @@ import { dampedImpulse } from '../../shared/impulse.js';
 import { breath, compose, hover, press, spring } from '../../core/motions.js';
 import { createBlinkLayer, eyeWeights } from '../../shared/blink.js';
 
+/** viewBox 的左上角（局部坐标）与尺寸。
+ *  由「所有动作的包络」推出：呼吸缩放 + 悬停上浮 + 按压下沉 + 回弹过冲 + 入场过冲，
+ *  逐项按最坏情况取并集，再留边距。**动作幅度调大必须重算**，否则会被裁掉。
+ *  `scene.js` 的 viewBox 属性与 `main.js` 的 `registerCharacter` 都从这里取，不再各写一份。 */
+export const VIEW = { minX: 0, minY: 0, w: 528, h: 512 };
+
 /* Sun 节点在画板上的落点，唯一一份：scene.js 的静态 <g translate> 与 index.js 写 #sun 的
    基准偏移都取自这里。
    值 = viewBox 中心 − 动作包络中心，所以太阳在画布里居中。 */

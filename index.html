@@ -9,9 +9,12 @@
 <body>
   <main class="hero">
     <!-- 角色由 src/core/registry.js 按 data-character 自动挂载。
-         舞台尺寸（宽高比 + 宽度）在 src/main.js 的 registerCharacter 一行给出。 -->
+         标称尺寸（宽高比 + 宽度）在 src/main.js 的 registerCharacter 一行给出；
+         排列方式（一行）与窄屏缩放由 src/style.css 的 .hero / .stage 管。 -->
     <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
     <div class="stage" data-character="sun"></div>
+    <div class="stage" data-character="earth"></div>
+    <div class="stage" data-character="moon"></div>
   </main>
 
   <script type="module" src="/src/main.js"></script>

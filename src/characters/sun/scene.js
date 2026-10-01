@@ -31,12 +31,12 @@ import eye_half from '../../assets/eye/eye_half.png';
 import eye_open from '../../assets/eye/eye_open.png';
 import sun_base from '../../assets/sun/sun_base.png';
 
-import { BODY_C, CANVAS_T, SUN } from './anim.js';
+import { BODY_C, CANVAS_T, SUN, VIEW } from './anim.js';
 
 const IMG = { eye_closed, eye_half, eye_open, sun_base };
 
 export const SVG_SCENE = `
-    <svg id="scene" viewBox="0 0 528 512" role="img"
+    <svg id="scene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、会随机眨眼、可悬停的太阳角色">
 
       <g transform="translate(${SUN.x} ${SUN.y})">
