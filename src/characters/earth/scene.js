@@ -7,8 +7,7 @@
  *      本体缩放 / 上浮时眼睛随之移动，不会与烘死的嘴错开。
  *    · 云烘在本体边缘上，不是独立图层。再加一层时排在本体之后，并给它 `data-name`。
  *
- * 2) 本体与三态眼都是 1536 画布，且眼图是从本体上原样抠出来的
- *    （见 `_draft/_import-earth-moon.py`）—— 内容已在画布上的正确位置，
+ * 2) 本体与三态眼都是 1536 画布，且眼图是从本体上原样抠出来的 —— 内容已在画布上的正确位置，
  *    所以两层共用同一份 `CANVAS_T`（定义在 anim.js），无需任何对位修正。
  *
  * 3) 每帧写 transform 的只有两个组：
@@ -18,7 +17,7 @@
  * 4) 命中区 <circle id="hit"> 放在 #earth 之外，不随悬停移动，避免贴边 hover 抖动。
  *    圆心对准球心（非素材画布中心），半径 172 略大于球体半径 ≈170，云边不算命中。
  *
- * `data-name` 是 `_draft/character-tuner.html` 读取的中文图层名，不参与渲染。
+ * `data-name` 是图层中文名（调试用），不参与渲染。
  *
  * ⚠️ 下面整块是模板字符串：注释里不能出现反引号，也不能出现裸的 ${。改完必跑 `npm run build`。
  */
@@ -57,8 +56,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <!-- 命中区：在 #earth 组外，不随悬停移动。圆心对准球心（BODY_C 为球心相对素材画布中心的偏移）。
-           id 以 Hit 结尾是 _draft/character-tuner.html 的约定（它按这个正则找命中区）。 -->
+      <!-- 命中区：在 #earth 组外，不随悬停移动。圆心对准球心（BODY_C 为球心相对素材画布中心的偏移）。 -->
       <circle id="earthHit" cx="${(EARTH.x + BODY_C.x).toFixed(1)}" cy="${(EARTH.y + BODY_C.y).toFixed(1)}" r="172"
               fill="transparent" style="pointer-events: all" />
     </svg>

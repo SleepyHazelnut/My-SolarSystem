@@ -5,18 +5,18 @@
  *    · 无睡帽层。加回时补一层 `#moonCap`，必须挂在 `#moonBodyWrap` **内**与本体同缩，
  *      分开缩会在呼吸时与头顶错开。
  *
- * 2) 本体是 1536 画布，原位叠上去即可（见 `_draft/_import-earth-moon.py`）。
+ * 2) 本体是 1536 画布，原位叠上去即可。
  *
  * 3) 每帧写 transform 的只有两个组：
  *      #moon          入场缩放。局部原点即画布中心，`scale` 原地生效
  *      #moonBodyWrap  呼吸 + 悬停 + 按压，绕球心缩放与上浮
  *
  * 4) 命中区 <circle id="hit"> 放在 #moon 之外，不随悬停移动，避免贴边 hover 抖动。
- *    圆心对准球心（非素材画布中心），半径 162 略大于球体半径 ≈159，绒球与星星不算命中。
+ *    圆心对准球心（非素材画布中心），半径 162 略大于球体半径 ≈159。
  *
  * ⚠️ 月球**不眨眼** —— 五官烘在本体图上，没有三态眼层。
  *
- * `data-name` 是 `_draft/character-tuner.html` 读取的中文图层名，不参与渲染。
+ * `data-name` 是图层中文名（调试用），不参与渲染。
  *
  * ⚠️ 下面整块是模板字符串：注释里不能出现反引号，也不能出现裸的 ${。改完必跑 `npm run build`。
  */
@@ -39,8 +39,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <!-- 命中区：在 #moon 组外，不随悬停移动。圆心对准球心（BODY_C 为球心相对素材画布中心的偏移）。
-           id 以 Hit 结尾是 _draft/character-tuner.html 的约定（它按这个正则找命中区）。 -->
+      <!-- 命中区：在 #moon 组外，不随悬停移动。圆心对准球心（BODY_C 为球心相对素材画布中心的偏移）。 -->
       <circle id="moonHit" cx="${(MOON.x + BODY_C.x).toFixed(1)}" cy="${(MOON.y + BODY_C.y).toFixed(1)}" r="162"
               fill="transparent" style="pointer-events: all" />
     </svg>

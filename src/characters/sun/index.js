@@ -2,24 +2,23 @@
  * 太阳角色：把动画写进 DOM。
  *
  *   scene.js  图层结构（静态，4 张原图：本体 + 三态眼）
- *   anim.js   动作（纯逻辑，由 `core/motions.js` 的原语叠出）
+ *   anim.js   动作参数 + 纯逻辑（由 `core/motions.js` 的原语叠出）
  *   本文件    太阳专属部分：哪个组写什么 transform、入场支点在哪
  *
  * 注入 SVG / 入场进度 / 指针输入 / 逐帧时钟 / 首帧 / destroy 都在 `core/character.js`，
  * 这里只提供 `setup()`。
  *
- * 入场形状与曲线在 `shared/intro.js`。缩放写在 `#sun` 上，其局部原点即太阳中心，原地放大。
+ * 入场形状（`INTRO`）在 `anim.js`，曲线在 `shared/intro.js`。
+ * 缩放写在 `#sun` 上，其局部原点即太阳中心，原地放大。
  */
 import { SVG_SCENE } from './scene.js';
-import { BODY_C, createSunAnim } from './anim.js';
+import { BODY_C, INTRO, createSunAnim } from './anim.js';
 import { defineCharacter } from '../../core/character.js';
-
-/** 入场参数转出，保持既有调用方与 `_draft/` 探针可用。 */
-export { INTRO } from '../../shared/intro.js';
 
 export const mountSun = defineCharacter({
   scene: SVG_SCENE,
   createAnim: createSunAnim,
+  intro: INTRO,
 
   setup(root) {
     const sunEl = root.querySelector('#sun');
@@ -35,7 +34,7 @@ export const mountSun = defineCharacter({
 
     return {
       apply(v, iv) {
-        /* 入场：仅在 `INTRO.dur` 未走完时生效；结束后 k 恒为 1、dy 恒为 0、opacity 清空。 */
+        /* `iv.opacity === null` → 清掉 inline opacity */
         if (iv.opacity === null) { if (sceneEl.style.opacity) sceneEl.style.opacity = ''; }
         else sceneEl.style.opacity = iv.opacity;
 
@@ -60,7 +59,7 @@ export const mountSun = defineCharacter({
     };
   },
 
-  /* 探针接口（`_draft/` 用）：挂载器不认识的自己带上。 */
+  /* 探针接口：挂载器不认识的自己带上。 */
   extra: (anim) => ({
     get blink() { return anim.blinkValue(); },
     blinkNow() { anim.blinkNow(); },

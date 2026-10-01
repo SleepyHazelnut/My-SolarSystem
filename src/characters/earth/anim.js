@@ -7,7 +7,6 @@
  *
  * 素材几何：`earth_base.png` 与 `eye_{open,half,closed}.png` 都是 **1536 画布**，
  * 眼图是从本体上原样抠出来的，内容已在画布上的正确位置 —— 两层共用同一份 `CANVAS_T`。
- * 见 `_draft/_import-earth-moon.py`。
  */
 import { cubicBezier } from '../../shared/easing.js';
 import { approach } from '../../shared/approach.js';
@@ -39,6 +38,8 @@ export const BODY_C = { x: K * (749.5 - CANVAS_C), y: K * (779 - CANVAS_C) };
     两层都是 1536 画布、内容都在画布上的正确位置，共用一份即天然对齐。 */
 export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
 
+/* ---------- 动作参数 ---------- */
+
 /* 呼吸（本体）：周期 3.2 s。纵向为主，横向跟四成；`lift` 是同一条正弦驱动的纵向起伏。 */
 const BREATH = { dur: 3.2, amp: 0.018, lift: 2.4, wide: 0.40 };
 
@@ -52,6 +53,9 @@ const PRESS = { amp: 0.065, wide: 0.75, sink: 3.0, rate: 22 };
    `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零。
    sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
 const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
+
+/* 入场：`dy` 是起始下移（viewBox 单位），`delay` 是错开的秒数。 */
+export const INTRO = { dur: 0.62, fromScale: 0.62, dy: 34, delay: 0 };
 
 /* 眨眼：与太阳同一套口径（`shared/blink.js` 的三段权重必须各角色一致）。 */
 const BLINK = {

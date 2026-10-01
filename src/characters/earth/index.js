@@ -2,21 +2,22 @@
  * 地球角色：把动画写进 DOM。
  *
  *   scene.js  图层结构（静态，4 张原图：本体 + 三态眼）
- *   anim.js   动作（纯逻辑，由 `core/motions.js` 的原语叠出）
+ *   anim.js   动作参数 + 纯逻辑（由 `core/motions.js` 的原语叠出）
  *   本文件    地球专属部分：哪个组写什么 transform、入场支点在哪
  *
  * 注入 SVG / 入场进度 / 指针输入 / 逐帧时钟 / 首帧 / destroy 都在 `core/character.js`，
- * 这里只提供 `setup()`。入场形状与曲线在 `shared/intro.js`。
+ * 这里只提供 `setup()`。入场形状（`INTRO`）在 `anim.js`。
  *
  * 与太阳逐行同构，只有 id 前缀与球心不同。
  */
 import { SVG_SCENE } from './scene.js';
-import { BODY_C, createEarthAnim } from './anim.js';
+import { BODY_C, INTRO, createEarthAnim } from './anim.js';
 import { defineCharacter } from '../../core/character.js';
 
 export const mountEarth = defineCharacter({
   scene: SVG_SCENE,
   createAnim: createEarthAnim,
+  intro: INTRO,
   /* 命中区 id 带角色前缀 —— 三个角色的 SVG 在同一页里，id 不能重名。 */
   hit: '#earthHit',
 
@@ -34,7 +35,7 @@ export const mountEarth = defineCharacter({
 
     return {
       apply(v, iv) {
-        /* 入场：仅在 `INTRO.dur` 未走完时生效；结束后 k 恒为 1、dy 恒为 0、opacity 清空。 */
+        /* `iv.opacity === null` → 清掉 inline opacity */
         if (iv.opacity === null) { if (sceneEl.style.opacity) sceneEl.style.opacity = ''; }
         else sceneEl.style.opacity = iv.opacity;
 
@@ -58,7 +59,7 @@ export const mountEarth = defineCharacter({
     };
   },
 
-  /* 探针接口（`_draft/` 用）：挂载器不认识的自己带上。 */
+  /* 探针接口：挂载器不认识的自己带上。 */
   extra: (anim) => ({
     get blink() { return anim.blinkValue(); },
     blinkNow() { anim.blinkNow(); },

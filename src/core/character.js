@@ -9,10 +9,10 @@
  *
  * 可选：
  *   hit          命中区选择器，默认 `'#hit'`
+ *   intro        入场形状（各角色 `anim.js` 里的 `INTRO`），缺省用 `shared/intro.js` 的默认值
  *
- * 入场缩放的作用点由角色在 `apply` 里决定，挂载器不代劳：局部原点即角色中心的组可直接写
- * `scale(k)`；支点不在局部原点的组必须自己补 `translate(C) scale(k) translate(-C)`，
- * 否则会绕画布左上角放大。
+ * 入场缩放的作用点由角色在 `apply` 里决定：局部原点即角色中心的组可直接写 `scale(k)`，
+ * 否则要自己补 `translate(C) scale(k) translate(-C)` 把支点搬回中心。
  *
  * ⚠️ 首帧必须立刻按入场起始姿态写一次（`tick(0, 0)`）。
  */
@@ -21,8 +21,8 @@ import { clampDt } from '../shared/clock.js';
 import { createIntro } from '../shared/intro.js';
 import { bindPointerInput } from '../shared/input.js';
 
-export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit' }) {
-  return function mount(root, { intro = true } = {}) {
+export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit', intro } = {}) {
+  return function mount(root, { intro: playIntro = true } = {}) {
     if (!root) throw new Error('mount: 缺少挂载容器');
 
     root.innerHTML = scene;
@@ -36,7 +36,7 @@ export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit' 
 
     /* `matchMedia` 是 DOM 的事，判断放在这里；`createIntro` 只收结果 */
     const REDUCED = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    const introFx = createIntro({ enabled: intro && !REDUCED });
+    const introFx = createIntro({ params: intro, enabled: playIntro && !REDUCED });
     const { apply } = setup(root);
 
     let last = null;
@@ -52,8 +52,7 @@ export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit' 
     }
     gsap.ticker.add(tick);
 
-    /* `pointercancel`（触屏被系统打断）与窗口失焦都要清掉按下态，
-       否则会卡在压扁姿态；`leave` 不清 —— 按住拖出去再松手仍走 window 的 `pointerup`。 */
+    /* `pointercancel`（触屏被系统打断）与窗口失焦都要清掉按下态；`leave` 不清。 */
     const release = () => { anim.setHover?.(false); anim.setDown?.(false); };
     bindPointerInput(hitEl, ac, {
       onEnter: () => anim.setHover?.(true),

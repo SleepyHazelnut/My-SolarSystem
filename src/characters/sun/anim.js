@@ -7,7 +7,7 @@
  * 呼吸落在本体上：火焰边缘烘在本体内，本体缩放即整颗太阳的呼吸。
  *
  * 素材几何：`sun_base.png` 与 `src/assets/eye/*.png` 都是 1536 画布，且眼图从本体上原样抠出，
- * 内容已在画布上的正确位置，两层共用同一份 `CANVAS_T`。见 `_draft/_rebuild-eyes.py`。
+ * 内容已在画布上的正确位置，两层共用同一份 `CANVAS_T`。
  */
 import { cubicBezier } from '../../shared/easing.js';
 import { approach } from '../../shared/approach.js';
@@ -36,9 +36,10 @@ const CANVAS_C = 768;
 export const BODY_C = { x: K * (788 - CANVAS_C), y: K * (732 - CANVAS_C) };
 
 /** 素材画布（1536）→ 局部单位 的公共变换。本体与三态眼**都用它**，只此一份 ——
-    两层都是 1536 画布、内容都在画布上的正确位置，共用一份即天然对齐，不需要对位参数。
-    见 `_draft/_rebuild-eyes.py`。 */
+    两层都是 1536 画布、内容都在画布上的正确位置，共用一份即天然对齐，不需要对位参数。 */
 export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
+
+/* ---------- 动作参数 ---------- */
 
 /* 呼吸（本体）：周期 4.3 s。幅度受火焰边缘限制，纵向为主、横向跟四成。
    `lift` 是同一条正弦驱动的纵向起伏。 */
@@ -54,6 +55,9 @@ const PRESS = { amp: 0.065, wide: 0.75, sink: 3.0, rate: 22 };
    `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零。
    sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
 const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
+
+/* 入场：`dy` 是起始下移（viewBox 单位），`delay` 是错开的秒数。 */
+export const INTRO = { dur: 0.62, fromScale: 0.62, dy: 34, delay: 0 };
 
 /* 眨眼：相位按帧对齐（5 闭 + 1 保持 + 3 睁 = 9 帧）。
    三态眼的半闭 / 闭 = 睁眼绕自身中心垂直压扁，比例 0.5047 / 0.1682。 */

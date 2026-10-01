@@ -21,21 +21,23 @@ import { breath, compose, hover, press, spring } from '../../core/motions.js';
 export const VIEW = { minX: -181.5, minY: -183, w: 362, h: 361 };
 
 /* 素材画布（1536）→ 局部单位。
-   0.30：球体半径 529 px → 158.7 单位。 */
-const K = 0.30;
+   0.3171：球体半径 500.5 px → 158.7 单位。 */
+const K = 0.3171;
 
 /* 素材画布中心。本体按它对齐。 */
 const CANVAS_C = 768;
 
 /** 局部原点（素材画布中心）在 viewBox 里的落点 = viewBox 中心 − 动作包络中心。
- *  月球的包络以画布中心为心（偏 (−0.45, −3.0) 单位），落点近似 0。 */
-export const MOON = { x: -0.05, y: 0.5 };
+ *  月球的包络以球心为心，偏 (0.63, 2.06) 单位。 */
+export const MOON = { x: -1.134, y: -4.561 };
 
-/* 呼吸缩放的支点 = 球心（素材坐标 (767.5, 758.5)，球半径 ≈529）。 */
-export const BODY_C = { x: K * (767.5 - CANVAS_C), y: K * (758.5 - CANVAS_C) };
+/* 呼吸缩放的支点 = 球心（素材坐标 (770, 774.5)，球半径 ≈500.5）。 */
+export const BODY_C = { x: K * (770 - CANVAS_C), y: K * (774.5 - CANVAS_C) };
 
 /** 素材画布（1536）→ 局部单位 的公共变换。 */
 export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
+
+/* ---------- 动作参数 ---------- */
 
 /* 呼吸（本体）：周期 3.6 s（太阳 4.3 / 地球 3.2）。
    纵向为主，横向跟四成；`lift` 是同一条正弦驱动的纵向起伏。 */
@@ -51,6 +53,9 @@ const PRESS = { amp: 0.065, wide: 0.75, sink: 3.0, rate: 22 };
    `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零。
    sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
 const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
+
+/* 入场：`dy` 是起始下移（viewBox 单位），`delay` 是错开的秒数。 */
+export const INTRO = { dur: 0.62, fromScale: 0.62, dy: 34, delay: 0 };
 
 /**
  * 建一个月球的动画实例（纯计算，不碰 DOM）。
