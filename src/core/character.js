@@ -14,8 +14,7 @@
  * `scale(k)`；支点不在局部原点的组必须自己补 `translate(C) scale(k) translate(-C)`，
  * 否则会绕画布左上角放大。
  *
- * ⚠️ 首帧必须立刻按入场起始姿态写一次（`tick(0, 0)`）：否则会先以满尺寸、不透明画一帧，
- * 再跳回起始值。
+ * ⚠️ 首帧必须立刻按入场起始姿态写一次（`tick(0, 0)`）。
  */
 import gsap from 'gsap';
 import { clampDt } from '../shared/clock.js';
@@ -65,7 +64,7 @@ export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit' 
       onBlur: release,
     });
 
-    /* 首帧：立刻按入场的起始姿态写一次（见文件头 ⚠️） */
+    /* 首帧：立刻按入场起始姿态写一次 */
     tick(0, 0);
 
     return {

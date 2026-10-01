@@ -18,13 +18,11 @@
  * 4) 命中区 <circle id="hit"> 放在 #sun 之外，不随悬停移动，避免贴边 hover 抖动。
  *    圆心对准球心（非素材画布中心），半径 150 略大于球体半径 ≈146，火焰尖不算命中。
  *
- * viewBox 由「所有动作的包络 + 约 16 单位边距」推出，已计入入场过冲、呼吸缩放、悬停上浮。
- * 动作幅度调大后必须重算，否则会被裁掉。
+ * viewBox 由所有动作的包络加边距推出（见 `anim.js` 的 `VIEW`）；动作幅度调大后必须重算。
  *
  * `data-name` 是 `_draft/character-tuner.html` 读取的中文图层名，不参与渲染。
  *
- * ⚠️ 下面整块是模板字符串：注释里不能出现反引号（会提前截断，rollup 报 "Expected a semicolon"），
- * 也不能出现裸的 ${。改完必跑 `npm run build`。
+ * ⚠️ 下面整块是模板字符串：注释里不能出现反引号，也不能出现裸的 ${。改完必跑 `npm run build`。
  */
 import eye_closed from '../../assets/eye/eye_closed.png';
 import eye_half from '../../assets/eye/eye_half.png';

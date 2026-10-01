@@ -13,14 +13,11 @@ import { VIEW as MOON_VIEW } from './characters/moon/anim.js';
 import { mountMoon } from './characters/moon/index.js';
 
 /* `viewBox` 出宽高比，`stageWidth` 是标称宽度上限（px）—— 两者共同决定舞台多大。
-   `viewBox` 从各角色的 `anim.js` 取，不在 `scene.js` 里另写一份。
-   ⚠️ 三个角色**球体在屏幕上的大小**由「球体直径 / viewBox 宽」× stageWidth 决定：
-       太阳 292.4 / 528 × 439 ≈ 243 px（含火焰，本来就大一号）
-       地球 340.2 / 386 × 199.4 ≈ 176 px
-       月球 317.4 / 362 × 171.1 ≈ 150 px（= 地球的 0.85 倍）
-   ⚠️ `stageWidth / viewBox.w` 是**每单位多少 px**，才是真正决定球大小的量。
-      改 `VIEW.w`（给按压的横向鼓起留余量）时必须按同一比例改 `stageWidth`，
-      这样 `--stage-w` 变了、球在屏幕上的大小不变。 */
+   `viewBox` 从各角色的 `anim.js` 取。
+   球体在屏幕上的大小 = 球体直径 / `viewBox.w` × `stageWidth`：
+     太阳 292.4 / 528 × 439 ≈ 243 px ｜ 地球 340.2 / 386 × 199.4 ≈ 176 px ｜
+     月球 317.4 / 362 × 171.1 ≈ 150 px
+   改 `VIEW.w` 时必须按同一比例改 `stageWidth`，球的大小才不变。 */
 registerCharacter('sun', mountSun, { viewBox: [SUN_VIEW.w, SUN_VIEW.h], stageWidth: 439 });
 registerCharacter('earth', mountEarth, { viewBox: [EARTH_VIEW.w, EARTH_VIEW.h], stageWidth: 199.4 });
 registerCharacter('moon', mountMoon, { viewBox: [MOON_VIEW.w, MOON_VIEW.h], stageWidth: 171.1 });

@@ -10,8 +10,7 @@
  */
 import { easeOutBack } from './easing.js';
 
-/** 入场的形状（所有角色同一组）—— 就地改这里即可整体调参。
- *  ⚠️ `_draft/_intro-shots.mjs` 通过拉长 `dur` 后重挂来逐帧取图（0.62 s 太短，截图抓不住）。 */
+/** 入场的形状（所有角色同一组）—— 就地改这里即可整体调参。 */
 export const INTRO = {
   dur: 0.62,         // 秒
   fromScale: 0.62,   // 起始缩放（相对静止姿态）
@@ -30,8 +29,7 @@ export function createIntro({ delay = 0, enabled = true } = {}) {
   let t = enabled ? -delay : INTRO.dur;
 
   /** 当前该写进 DOM 的三个量。
-   *  `opacity === null` = 把 inline opacity **清掉** —— 入场结束后画面要逐位回到
-   *  没有入场时的样子（`sceneEl.style.opacity` 退回空串，与入场前逐字节相同）。 */
+   *  `opacity === null` = 把 inline opacity **清掉**（`sceneEl.style.opacity` 退回空串）。 */
   function current() {
     const ie = easeOutBack(t / INTRO.dur);
     return {
@@ -45,7 +43,7 @@ export function createIntro({ delay = 0, enabled = true } = {}) {
     /** 推进 `dt` 秒（走完 `dur` 之后不再累加，`current()` 恒为终态） */
     step(dt) { if (t < INTRO.dur) t += dt; },
     current,
-    /** 还在播？false = 已是终态，画面与「没有入场」逐位相同 */
+    /** 还在播？false = 已是终态 */
     get playing() { return t < INTRO.dur; },
   };
 }

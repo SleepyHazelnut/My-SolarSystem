@@ -16,14 +16,13 @@ import { breath, compose, hover, press, spring } from '../../core/motions.js';
 import { createBlinkLayer, eyeWeights } from '../../shared/blink.js';
 
 /** viewBox 的左上角（局部坐标）与尺寸。
- *  由「所有动作的包络」推出：呼吸缩放 + 悬停上浮 + 按压下沉 + 回弹过冲 + 入场过冲，
- *  逐项按最坏情况取并集，再留边距。**动作幅度调大必须重算**，否则会被裁掉。
- *  `scene.js` 的 viewBox 属性与 `main.js` 的 `registerCharacter` 都从这里取，不再各写一份。 */
+ *  由所有动作的包络（呼吸 + 悬停 + 按压 + 回弹 + 入场过冲）取并集，再留边距。
+ *  `scene.js` 的 viewBox 属性与 `main.js` 的 `registerCharacter` 都从这里取。
+ *  动作幅度调大必须重算。 */
 export const VIEW = { minX: 0, minY: 0, w: 528, h: 512 };
 
 /* Sun 节点在画板上的落点，唯一一份：scene.js 的静态 <g translate> 与 index.js 写 #sun 的
-   基准偏移都取自这里。
-   值 = viewBox 中心 − 动作包络中心，所以太阳在画布里居中。 */
+   基准偏移都取自这里。值 = viewBox 中心 − 动作包络中心。 */
 export const SUN = { x: 268.2, y: 263.0 };
 
 /* 素材画布（1536）→ 局部单位。本体与三态眼共用，改这一个数不会让两层错开。
@@ -33,8 +32,7 @@ const K = 0.42;
 /* 素材画布中心。两层都按它对齐，即本体与眼睛的共同原点。 */
 const CANVAS_C = 768;
 
-/* 呼吸缩放的支点 = 太阳球心（素材坐标 (788, 732)，实测球半径 ≈348）。
-   不用画布中心 (768,768)：该点偏左下，绕它缩放会带轻微平移。 */
+/* 呼吸缩放的支点 = 太阳球心（素材坐标 (788, 732)，球半径 ≈348）。 */
 export const BODY_C = { x: K * (788 - CANVAS_C), y: K * (732 - CANVAS_C) };
 
 /** 素材画布（1536）→ 局部单位 的公共变换。本体与三态眼**都用它**，只此一份 ——
@@ -42,8 +40,8 @@ export const BODY_C = { x: K * (788 - CANVAS_C), y: K * (732 - CANVAS_C) };
     见 `_draft/_rebuild-eyes.py`。 */
 export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
 
-/* 呼吸（本体）：周期 4.3 s，幅度小 —— 火焰边缘为锯齿状，胀过头会张开缝。
-   纵向为主，横向跟四成；`lift` 是同一条正弦驱动的纵向起伏。 */
+/* 呼吸（本体）：周期 4.3 s。幅度受火焰边缘限制，纵向为主、横向跟四成。
+   `lift` 是同一条正弦驱动的纵向起伏。 */
 const BREATH = { dur: 4.3, amp: 0.018, lift: 2.4, wide: 0.40 };
 
 /* 悬停：整颗上抬（负 = 上）。rate 越大越跟手。 */
@@ -53,13 +51,12 @@ const HOVER = { lift: -9, rate: 11 };
 const PRESS = { amp: 0.065, wide: 0.75, sink: 3.0, rate: 22 };
 
 /* 松手回弹：一次冲激 + 指数衰减（`shared/impulse.js`）。
-   `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零、不再参与合成。
-   冲激值 sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
+   `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零。
+   sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
 const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
 
 /* 眨眼：相位按帧对齐（5 闭 + 1 保持 + 3 睁 = 9 帧）。
-   三态眼图由 `_draft/_rebuild-eyes.py` 生成 —— 半闭 / 闭 为睁眼绕自身中心垂直压扁
-   （0.5047 / 0.1682）。 */
+   三态眼的半闭 / 闭 = 睁眼绕自身中心垂直压扁，比例 0.5047 / 0.1682。 */
 const BLINK = {
   min: 2.5, max: 6.0,              // 两次眨眼起点到起点的间隔（秒）
   firstMin: 1.5, firstMax: 3.5,    // 首次眨眼的延迟
@@ -81,7 +78,7 @@ const EASE = {
 export function createSunAnim({ rand = Math.random } = {}) {
   const blink = createBlinkLayer({ ...BLINK, easeIn: EASE.ei, easeOut: EASE.eo, rand });
 
-  let t = 0;            // 全局时间轴（秒）。两条正弦都从它取相位，保证连续
+  let t = 0;            // 全局时间轴（秒）
   let hoverW = 0;       // 悬停权重 0~1，指数逼近
   let hovered = false;
   let pressW = 0;       // 按压权重 0~1，指数逼近
@@ -97,8 +94,8 @@ export function createSunAnim({ rand = Math.random } = {}) {
     pressW = approach(pressW, pressed ? 1 : 0, PRESS.rate, dt);
     blink.step(dt, true);
 
-    /* 松手回弹：`dampedImpulse` 的幅值固定取 1，幅度交给 `spring()` 的 `amp`，
-       这样 `KICK.amp` 就是「回弹时纵向最大形变比例」，不必再乘一遍衰减系数。 */
+    /* 松手回弹：`dampedImpulse` 的幅值固定取 1，幅度交给 `spring()` 的 `amp` ——
+       `KICK.amp` 即回弹时纵向最大形变比例。 */
     let kickU = 0;
     if (kickT !== Infinity) {
       kickU = dampedImpulse(kickT, 1, KICK.decay, KICK.omega);

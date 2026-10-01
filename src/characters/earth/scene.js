@@ -20,8 +20,7 @@
  *
  * `data-name` 是 `_draft/character-tuner.html` 读取的中文图层名，不参与渲染。
  *
- * ⚠️ 下面整块是模板字符串：注释里不能出现反引号（会提前截断，rollup 报 "Expected a semicolon"），
- * 也不能出现裸的 ${。改完必跑 `npm run build`。
+ * ⚠️ 下面整块是模板字符串：注释里不能出现反引号，也不能出现裸的 ${。改完必跑 `npm run build`。
  */
 import earth_base from '../../assets/earth/earth_base.png';
 import eye_closed from '../../assets/earth/eye_closed.png';

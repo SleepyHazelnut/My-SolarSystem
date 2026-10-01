@@ -36,13 +36,10 @@ body {
    ⚠️ 宽高比与 `--stage-w`（标称宽度，px 的**数值**、不带单位）都由 `main.js` 的
    `registerCharacter` 写进行内样式 —— 这里不出现任何一个角色的具体数字。
 
-   · `flex-grow` 取标称宽度 → 三个角色按**各自标称宽度**分配行宽，相对大小自动保持；
-     加角色、减角色都不用改这里。
-   · `max-width` 也取标称宽度 → 行宽够用时各自停在标称宽度、整行由 `justify-content`
-     居中（否则宽高比封顶后会在角色之间留下大片空白）；行宽不够时 flex 按比例压下来。
-   · 高度由 `aspect-ratio` 从分到的行宽推出（`height: auto`）—— 所以屏幕上球体的大小
-     只由「球体直径 / viewBox 宽」决定。
-   · `max-height: 100%` 是矮视口的兜底：高度被夹住后 `<svg>` 仍按 viewBox 等比内缩居中
+   · `flex-grow` 取标称宽度 → 按各自标称宽度分配行宽，加减角色都不用改这里。
+   · `max-width` 也取标称宽度 → 行宽够用时各自停在标称宽度、整行居中；不够时按比例压。
+   · 高度由 `aspect-ratio` 从分到的行宽推出（`height: auto`）。
+   · `max-height: 100%` 是矮视口的兜底：高度被夹住后 `<svg>` 按 viewBox 等比内缩居中
      （`preserveAspectRatio` 默认 meet），角色只是变小，不会被裁。 */
 .stage {
   flex-grow: var(--stage-w, 1);

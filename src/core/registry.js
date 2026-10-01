@@ -17,10 +17,9 @@ export function registerCharacter(name, mount, meta = {}) {
 
 /** 写入角色专属类名与标称尺寸变量。
  *  · 类名 `<名字>-stage` 自动加，`_draft/` 下的探针与调试页靠它选元素；
- *  · `--stage-w` = 标称宽度（px 的**数值**，不带单位）—— 它同时是行布局里分配宽度的
- *    flex 权重与宽度上限，所以不能带单位。高度不写，由 `style.css` 的 `aspect-ratio`
- *    从宽度反推。
- *  ⚠️ 窄屏兜底不在这里：`style.css` 按视口宽高整体缩，三个角色的相对大小才不会走形。 */
+ *  · `--stage-w` = 标称宽度（px 的**数值**，不带单位）—— 它同时是 flex 权重与宽度上限，
+ *    所以不能带单位。高度由 `style.css` 的 `aspect-ratio` 从宽度反推。
+ *  · 窄屏兜底不在这里：`style.css` 按视口宽高整体缩。 */
 function applyStage(el, name, { viewBox, stageWidth } = {}) {
   el.classList.add(`${name}-stage`);
   if (!viewBox) return;

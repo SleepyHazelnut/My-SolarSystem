@@ -8,7 +8,7 @@
  * 注入 SVG / 入场进度 / 指针输入 / 逐帧时钟 / 首帧 / destroy 都在 `core/character.js`，
  * 这里只提供 `setup()`。入场形状与曲线在 `shared/intro.js`。
  *
- * 与太阳逐行同构，只有 id 前缀和「球心」不同 —— 想加第三个球，照这份抄。
+ * 与太阳逐行同构，只有 id 前缀与球心不同。
  */
 import { SVG_SCENE } from './scene.js';
 import { BODY_C, createEarthAnim } from './anim.js';
@@ -34,8 +34,7 @@ export const mountEarth = defineCharacter({
 
     return {
       apply(v, iv) {
-        /* 入场：仅在 `INTRO.dur` 未走完时生效；结束后 k 恒为 1、dy 恒为 0、opacity 清空，
-           画面与无入场时逐位一致（见 `shared/intro.js`）。 */
+        /* 入场：仅在 `INTRO.dur` 未走完时生效；结束后 k 恒为 1、dy 恒为 0、opacity 清空。 */
         if (iv.opacity === null) { if (sceneEl.style.opacity) sceneEl.style.opacity = ''; }
         else sceneEl.style.opacity = iv.opacity;
 
@@ -67,4 +66,4 @@ export const mountEarth = defineCharacter({
 });
 
 /* 点击反馈由 `anim.js` 的 `setDown()` 驱动，本文件不额外接线 —— 挂载器把
-   pointerdown / pointerup 转发过去，姿态照旧走 `bodySX` / `bodySY` / `bodyDY` 三个量。 */
+   pointerdown / pointerup 转发过去，姿态仍走 `bodySX` / `bodySY` / `bodyDY`。 */

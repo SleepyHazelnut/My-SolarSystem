@@ -3,7 +3,7 @@
  *
  * 纯逻辑、不碰 DOM，每帧返回一组绝对值，由 `index.js` 写进 SVG 属性。
  * 姿态由 `core/motions.js` 的原语经 `compose()` 叠出，新增动作在 `compose()` 追加一项。
- * 与太阳同一套动作词汇，只有周期不同（地球 3.2 s，比太阳 4.3 快一点）。
+ * 与太阳同一套动作词汇，只有周期不同（地球 3.2 s / 太阳 4.3 s）。
  *
  * 素材几何：`earth_base.png` 与 `eye_{open,half,closed}.png` 都是 **1536 画布**，
  * 眼图是从本体上原样抠出来的，内容已在画布上的正确位置 —— 两层共用同一份 `CANVAS_T`。
@@ -16,14 +16,9 @@ import { breath, compose, hover, press, spring } from '../../core/motions.js';
 import { createBlinkLayer, eyeWeights } from '../../shared/blink.js';
 
 /** viewBox 的左上角（局部坐标）与尺寸。
- *  由「所有动作的包络」推出：呼吸缩放 + 悬停上浮 + 按压下沉 + 回弹过冲 + 入场过冲，
- *  逐项按最坏情况取并集。**动作幅度调大必须重算**，否则会被裁掉。
- *
- *  宽度特意比包络宽出约 12 单位/侧：按压是**横向鼓起**（`press()` 的 `wide`），
- *  鼓到最大时包络正好顶满原尺寸的 362 —— 实测按住不动扫满一个呼吸周期，
- *  左右余量只剩 1.9 / 0.0 单位（`_draft/_trio-worst.mjs`，270 个相位）。
- *  现在与太阳的 13.2 单位余量对齐。
- *  ⚠️ 加宽必须同步放大 `main.js` 的 `stageWidth`，否则屏幕上的球会变小。 */
+ *  由所有动作的包络（呼吸 + 悬停 + 按压 + 回弹 + 入场过冲）取并集，再留边距。
+ *  宽度比包络宽出约 12 单位/侧（按压是横向鼓起），与太阳的 13.2 单位对齐。
+ *  动作幅度调大必须重算；加宽必须同步放大 `main.js` 的 `stageWidth`。 */
 export const VIEW = { minX: -199, minY: -187, w: 386, h: 380 };
 
 /* 素材画布（1536）→ 局部单位。本体与三态眼共用，改这一个数不会让两层错开。
@@ -33,13 +28,11 @@ const K = 0.30;
 /* 素材画布中心。两层都按它对齐，即本体与眼睛的共同原点。 */
 const CANVAS_C = 768;
 
-/** 局部原点（素材画布中心）在 viewBox 里的落点 = **viewBox 中心 − 动作包络中心**。
- *  地球的包络本来就以画布中心为心（实测偏 (−5.75, 3.0) 单位），所以这个落点几乎是 0。
- *  ⚠️ 不是「viewBox 左上角取反」—— 那是把画布中心摆到画布右下角，整个角色会被裁掉一半。 */
+/** 局部原点（素材画布中心）在 viewBox 里的落点 = viewBox 中心 − 动作包络中心。
+ *  地球的包络以画布中心为心（偏 (−5.75, 3.0) 单位），落点近似 0。 */
 export const EARTH = { x: -0.25, y: 0 };
 
-/* 呼吸缩放的支点 = 球心（素材坐标 (749.5, 779)，实测球半径 ≈567）。
-   不用画布中心 (768,768)：该点偏右上，绕它缩放会带轻微平移。 */
+/* 呼吸缩放的支点 = 球心（素材坐标 (749.5, 779)，球半径 ≈567）。 */
 export const BODY_C = { x: K * (749.5 - CANVAS_C), y: K * (779 - CANVAS_C) };
 
 /** 素材画布（1536）→ 局部单位 的公共变换。本体与三态眼**都用它**，只此一份 ——
@@ -56,8 +49,8 @@ const HOVER = { lift: -9, rate: 11 };
 const PRESS = { amp: 0.065, wide: 0.75, sink: 3.0, rate: 22 };
 
 /* 松手回弹：一次冲激 + 指数衰减（`shared/impulse.js`）。
-   `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零、不再参与合成。
-   冲激值 sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
+   `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零。
+   sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
 const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
 
 /* 眨眼：与太阳同一套口径（`shared/blink.js` 的三段权重必须各角色一致）。 */
@@ -98,8 +91,8 @@ export function createEarthAnim({ rand = Math.random } = {}) {
     pressW = approach(pressW, pressed ? 1 : 0, PRESS.rate, dt);
     blink.step(dt, true);
 
-    /* 松手回弹：`dampedImpulse` 的幅值固定取 1，幅度交给 `spring()` 的 `amp`，
-       这样 `KICK.amp` 就是「回弹时纵向最大形变比例」，不必再乘一遍衰减系数。 */
+    /* 松手回弹：`dampedImpulse` 的幅值固定取 1，幅度交给 `spring()` 的 `amp` ——
+       `KICK.amp` 即回弹时纵向最大形变比例。 */
     let kickU = 0;
     if (kickT !== Infinity) {
       kickU = dampedImpulse(kickT, 1, KICK.decay, KICK.omega);

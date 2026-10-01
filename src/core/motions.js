@@ -26,15 +26,14 @@ export function hover(w, { lift }) {
   return { dy: w * lift };
 }
 
-/** 按压：把 0~1 的权重换成压扁 + 下沉。纵向压缩 `amp`，横向按 `wide` 反向鼓
- *  （等比缩小读起来是「变远」，压扁才是「被按下去」）。`sink` 是同时下沉的量。 */
+/** 按压：把 0~1 的权重换成压扁 + 下沉。纵向压缩 `amp`，横向按 `wide` 反向鼓，
+ *  `sink` 是同时下沉的量。 */
 export function press(w, { amp, wide = 0.75, sink = 0 }) {
   return { sx: 1 + w * amp * wide, sy: 1 - w * amp, dy: w * sink };
 }
 
 /** 回弹：把冲激值（±1 以内）换成压扁 / 拉长的往复，纵向主导、横向反向且按 `wide` 减半。
- *  冲激值本身由 `shared/impulse.js` 的 `dampedImpulse()` 给 —— 它 sin 起手，
- *  所以触发那帧位移为 0，不会跳。 */
+ *  冲激值由 `shared/impulse.js` 的 `dampedImpulse()` 给。 */
 export function spring(u, { amp, wide = 0.55 }) {
   return { sx: 1 - u * amp * wide, sy: 1 + u * amp };
 }
