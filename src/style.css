@@ -1,6 +1,7 @@
 :root {
   --bg: #FFF5E6;          /* 页面底色 */
   --ink: #3A2E1E;
+  --row-max: 1600px;      /* 整行宽度上限 */
 }
 
 * { box-sizing: border-box; }
@@ -9,46 +10,39 @@ html, body { height: 100%; }
 
 body {
   margin: 0;
+  padding: 2vmin;
   background: var(--bg);
   color: var(--ink);
   font: 14px/1.6 ui-sans-serif, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   display: grid;
   place-items: center;
   overflow: hidden;
+  container-type: size;   /* 让 `.hero` 能用 `cqh` 读到可用高度 */
 }
 
 /* ---------- 舞台 ---------- */
 
-/* 角色**一行**排布。宽度由 `.stage` 的 flex 权重分配（权重 = 标称宽度，见下），
-   所以三个角色横向按各自标称宽度分宽、纵向居中。 */
+/* 角色**一行**排布，整行等比内接在视口里。
+   宽度 = min(容器宽, `--row-max`, `--row-ar` × 容器高)；`--row-ar` 由 `registry.js` 推出。
+   ⚠️ 宽度只能在这里一次算死，别改成用 `max-width` 夹。 */
 .hero {
   display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 1.5vmin;
-  width: 100%;
-  height: 100%;
-  padding: 1.5vmin;
+  width: min(100%, var(--row-max), calc(var(--row-ar, 2) * 100cqh));
+  aspect-ratio: var(--row-ar, 2);
 }
 
-/* 角色共用：尺寸 + 交互样式。
-   ⚠️ 宽高比与 `--stage-w`（标称宽度，px 的**数值**、不带单位）都由 `main.js` 的
-   `registerCharacter` 写进行内样式 —— 这里不出现任何一个角色的具体数字。
-
-   · `flex-grow` 取标称宽度 → 按各自标称宽度分配行宽，加减角色都不用改这里。
-   · `max-width` 也取标称宽度 → 行宽够用时各自停在标称宽度、整行居中；不够时按比例压。
-   · 高度由 `aspect-ratio` 从分到的行宽推出（`height: auto`）。
-   · `max-height: 100%` 是矮视口的兜底：高度被夹住后 `<svg>` 按 viewBox 等比内缩居中
-     （`preserveAspectRatio` 默认 meet），角色只是变小，不会被裁。 */
+/* 角色共用：宽度与横向外边距都由 `registry.js` 写进行内样式 ——
+   这里不出现任何一个角色的具体数字。
+   · `width` = 舞台宽占整行比例（`--stage-w-pct`），三者相加 = 100%。
+   · `margin-inline` = 透明边扣掉 `VISUAL_GAP/2`（`--stage-margin-pct`）。
+   · 不 grow 也不 shrink。 */
 .stage {
-  flex-grow: var(--stage-w, 1);
-  flex-shrink: 1;
-  flex-basis: 0;
+  flex: 0 0 auto;
+  width: var(--stage-w-pct, 33.3333%);
+  margin-inline: var(--stage-margin-pct, 0%);
   min-width: 0;
-  max-width: calc(var(--stage-w, 400) * 1px);
-  max-height: 100%;
-  height: auto;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;

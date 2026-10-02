@@ -12,15 +12,14 @@ import { mountEarth } from './characters/earth/index.js';
 import { VIEW as MOON_VIEW } from './characters/moon/anim.js';
 import { mountMoon } from './characters/moon/index.js';
 
-/* `viewBox` 出宽高比，`stageWidth` 是标称宽度上限（px）—— 两者共同决定舞台多大。
-   `viewBox` 从各角色的 `anim.js` 取。
-   球体在屏幕上的大小 = 球体直径 / `viewBox.w` × `stageWidth`：
-     太阳 292.4 / 528 × 439 ≈ 243 px ｜ 地球 340.2 / 386 × 199.4 ≈ 176 px ｜
-     月球 317.4 / 362 × 171.1 ≈ 150 px
-   改 `VIEW.w` 时必须按同一比例改 `stageWidth`，球的大小才不变。 */
-registerCharacter('sun', mountSun, { viewBox: [SUN_VIEW.w, SUN_VIEW.h], stageWidth: 439 });
-registerCharacter('earth', mountEarth, { viewBox: [EARTH_VIEW.w, EARTH_VIEW.h], stageWidth: 199.4 });
-registerCharacter('moon', mountMoon, { viewBox: [MOON_VIEW.w, MOON_VIEW.h], stageWidth: 171.1 });
+/* 标称尺寸 —— `registry.js` 按它换算整行比例：
+     `viewBox` 舞台形状 ｜ `stageWidth` 舞台宽（px）｜ `ink` 墨迹宽（viewBox 单位，非透明像素的横向范围）
+   墨迹屏宽 = `ink` / `viewBox.w` × `stageWidth`：
+     太阳 471.9/528×439 ≈ 392 ｜ 地球 341.9/386×199.4 ≈ 177 ｜ 月球 316.8/362×171.1 ≈ 150
+   ⚠️ 改 `VIEW.w` 时同比例改 `stageWidth` 与 `ink`；换素材后重测 `ink`。 */
+registerCharacter('sun', mountSun, { viewBox: [SUN_VIEW.w, SUN_VIEW.h], stageWidth: 439, ink: 471.9 });
+registerCharacter('earth', mountEarth, { viewBox: [EARTH_VIEW.w, EARTH_VIEW.h], stageWidth: 199.4, ink: 341.9 });
+registerCharacter('moon', mountMoon, { viewBox: [MOON_VIEW.w, MOON_VIEW.h], stageWidth: 171.1, ink: 316.8 });
 
 const mounted = mountAll();
 
@@ -30,7 +29,7 @@ window.sun = byName.sun;
 window.earth = byName.earth;
 window.moon = byName.moon;
 
-// 热更新时先拆干净，否则会叠出第二个 rAF 循环
+// 热更新时先拆干净
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     mounted.forEach(({ instance }) => instance.destroy());
