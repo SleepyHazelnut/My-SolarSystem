@@ -6,13 +6,11 @@
  *   createAnim   `() => { step(dt) -> 姿态, setHover?(bool), setDown?(bool) }`，纯逻辑，见各 `anim.js`
  *   setup(root)  查元素，返回 `{ apply(v, intro) }`，把姿态写进 DOM
  * 指针回调按方法名转发：动画实例上写了 `setHover` / `setDown` 就调，没写就跳过。
+ * 探针接口同理：写了 `blinkNow` 就额外暴露 `blink` / `blinkNow`。
  *
  * 可选：
  *   hit          命中区选择器，默认 `'#hit'`
- *   intro        入场形状（各角色 `anim.js` 里的 `INTRO`），缺省用 `shared/intro.js` 的默认值
- *
- * 入场缩放的作用点由角色在 `apply` 里决定：局部原点即角色中心的组可直接写 `scale(k)`，
- * 否则要自己补 `translate(C) scale(k) translate(-C)` 把支点搬回中心。
+ *   intro        入场形状，缺省用 `shared/intro.js` 的默认值
  *
  * ⚠️ 首帧必须立刻按入场起始姿态写一次（`tick(0, 0)`）。
  */
@@ -21,7 +19,7 @@ import { clampDt } from '../shared/clock.js';
 import { createIntro } from '../shared/intro.js';
 import { bindPointerInput } from '../shared/input.js';
 
-export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit', intro } = {}) {
+export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro } = {}) {
   return function mount(root, { intro: playIntro = true } = {}) {
     if (!root) throw new Error('mount: 缺少挂载容器');
 
@@ -42,13 +40,12 @@ export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit',
     let last = null;
     let lastIntro = introFx.current();
 
-    function tick(time, deltaMs) {
+    function tick(_time, deltaMs) {
       const dt = clampDt(deltaMs);
       introFx.step(dt);
       lastIntro = introFx.current();
       last = anim.step(dt);
       apply(last, lastIntro);
-      void time;
     }
     gsap.ticker.add(tick);
 
@@ -77,8 +74,11 @@ export function defineCharacter({ scene, createAnim, setup, extra, hit = '#hit',
         ac.abort();
         root.innerHTML = '';
       },
-      /* 角色自己的探针接口（太阳的 `blink` / `blinkNow` 这类），由 `extra(anim)` 追加 */
-      ...(extra ? extra(anim) : {}),
+      /* 探针接口：动画实例上写了 `blinkNow` 就转发，与指针回调同一套约定。 */
+      ...(anim.blinkNow ? {
+        get blink() { return anim.blinkValue(); },
+        blinkNow: () => anim.blinkNow(),
+      } : {}),
     };
   };
 }

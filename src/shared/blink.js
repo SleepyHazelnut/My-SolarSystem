@@ -5,15 +5,31 @@
  * 间隔口径是「两次眨眼的**起点到起点**」，内部再减 `dur`。
  * `rand` 是注入的随机源；`double = 0` 时**不消耗随机数**。
  */
-export function createBlinkLayer({
-  closeF, holdF, openF,
-  min, max,
-  firstMin, firstMax,
-  double = 0, doubleMin = 0, doubleMax = 0,
-  easeIn = (u) => u,
-  easeOut = (u) => u,
-  rand = Math.random,
-} = {}) {
+import { cubicBezier } from './easing.js';
+
+/** 默认口径：相位 5 闭 + 1 保持 + 3 睁 = 9 帧，间隔与连眨概率见下。 */
+export const BLINK_DEFAULT = {
+  min: 2.5, max: 6.0,              /* 两次眨眼起点到起点的间隔（秒） */
+  firstMin: 1.5, firstMax: 3.5,    /* 首次眨眼的延迟 */
+  double: 0.15,                    /* 连眨概率 */
+  doubleMin: 0.20, doubleMax: 0.28,
+  closeF: 5, holdF: 1, openF: 3,
+};
+
+/* 眨眼的闭合 / 张开曲线。 */
+const EASE_IN = cubicBezier(0.40, 0.00, 1.00, 1.00);
+const EASE_OUT = cubicBezier(0.00, 0.00, 0.20, 1.00);
+
+export function createBlinkLayer(options = {}) {
+  const {
+    closeF, holdF, openF,
+    min, max,
+    firstMin, firstMax,
+    double = 0, doubleMin = 0, doubleMax = 0,
+    easeIn = EASE_IN,
+    easeOut = EASE_OUT,
+    rand = Math.random,
+  } = { ...BLINK_DEFAULT, ...options };
   const dur = (closeF + holdF + openF) / 60;
   let t = -1;        // 当前这次眨眼已经进行了多少秒；-1 = 没在眨
   let wait = firstMin + rand() * (firstMax - firstMin);
