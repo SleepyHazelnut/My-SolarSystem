@@ -24,7 +24,7 @@ import eye_half from '../../assets/venus/eye_half.png';
 import eye_open from '../../assets/venus/eye_open.png';
 import venus_base from '../../assets/venus/venus_base.png';
 
-import { BODY_C, CANVAS_T, VENUS, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 const IMG = { eye_closed, eye_half, eye_open, venus_base };
 
@@ -32,7 +32,7 @@ export const SVG_SCENE = `
     <svg id="venusScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、会随机眨眼、可悬停的金星角色">
 
-      <g transform="translate(${VENUS.x} ${VENUS.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="venus">
 
           <g id="venusBodyWrap">
@@ -53,7 +53,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <circle id="venusHit" cx="${(VENUS.x + BODY_C.x).toFixed(1)}" cy="${(VENUS.y + BODY_C.y).toFixed(1)}" r="181"
+      <circle id="venusHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="181"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

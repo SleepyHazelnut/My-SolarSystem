@@ -22,13 +22,13 @@
  */
 import moon_base from '../../assets/moon/moon_base.png';
 
-import { BODY_C, CANVAS_T, MOON, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 export const SVG_SCENE = `
     <svg id="moonScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、可悬停的月球角色">
 
-      <g transform="translate(${MOON.x} ${MOON.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="moon">
 
           <g id="moonBodyWrap">
@@ -40,7 +40,7 @@ export const SVG_SCENE = `
       </g>
 
       <!-- 命中区：在 #moon 组外，不随悬停移动。圆心对准球心（BODY_C 为球心相对素材画布中心的偏移）。 -->
-      <circle id="moonHit" cx="${(MOON.x + BODY_C.x).toFixed(1)}" cy="${(MOON.y + BODY_C.y).toFixed(1)}" r="162"
+      <circle id="moonHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="162"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

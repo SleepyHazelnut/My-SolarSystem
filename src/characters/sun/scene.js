@@ -15,7 +15,7 @@
  *      #sunBodyWrap  呼吸 + 悬停 + 按压，绕球心缩放与上浮
  *    眼睛挂在 #sunBodyWrap 内，本体缩放 / 上浮时随之移动，不会与烘死的嘴错开。
  *
- * 4) 命中区 <circle id="hit"> 放在 #sun 之外，不随悬停移动，避免贴边 hover 抖动。
+ * 4) 命中区 <circle id="sunHit"> 放在 #sun 之外，不随悬停移动，避免贴边 hover 抖动。
  *    圆心对准球心（非素材画布中心），半径 150 略大于球体半径 ≈146，火焰尖不算命中。
  *
  * viewBox 由所有动作的包络加边距推出（见 `anim.js` 的 `VIEW`）；动作幅度调大后必须重算。
@@ -29,15 +29,15 @@ import eye_half from '../../assets/eye/eye_half.png';
 import eye_open from '../../assets/eye/eye_open.png';
 import sun_base from '../../assets/sun/sun_base.png';
 
-import { BODY_C, CANVAS_T, SUN, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 const IMG = { eye_closed, eye_half, eye_open, sun_base };
 
 export const SVG_SCENE = `
-    <svg id="scene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
+    <svg id="sunScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、会随机眨眼、可悬停的太阳角色">
 
-      <g transform="translate(${SUN.x} ${SUN.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="sun">
 
           <g id="sunBodyWrap">
@@ -47,11 +47,11 @@ export const SVG_SCENE = `
             <!-- 三态眼：各一层，靠 opacity 交叉淡入，初始为「睁」。
                  与本体同一画布、同一变换，位置即脸上原位置。 -->
             <g id="sunEyes" data-name="眼睛" transform="${CANVAS_T}">
-              <image id="eyeClosed" data-name="眼睛·闭" href="${IMG.eye_closed}" x="0" y="0" width="1536" height="1536"
+              <image id="sunEyeClosed" data-name="眼睛·闭" href="${IMG.eye_closed}" x="0" y="0" width="1536" height="1536"
                      opacity="0" />
-              <image id="eyeHalf" data-name="眼睛·半闭" href="${IMG.eye_half}" x="0" y="0" width="1536" height="1536"
+              <image id="sunEyeHalf" data-name="眼睛·半闭" href="${IMG.eye_half}" x="0" y="0" width="1536" height="1536"
                      opacity="0" />
-              <image id="eyeOpen" data-name="眼睛·睁" href="${IMG.eye_open}" x="0" y="0" width="1536" height="1536"
+              <image id="sunEyeOpen" data-name="眼睛·睁" href="${IMG.eye_open}" x="0" y="0" width="1536" height="1536"
                      opacity="1" />
             </g>
           </g>
@@ -62,7 +62,7 @@ export const SVG_SCENE = `
       <!-- 命中区：在 #sun 组外，不随悬停移动。
            圆心对准球心（BODY_C 为球心相对素材画布中心的偏移），半径 150 略大于球体半径
            （≈146 局部单位），火焰尖不算命中。 -->
-      <circle id="hit" cx="${(SUN.x + BODY_C.x).toFixed(1)}" cy="${(SUN.y + BODY_C.y).toFixed(1)}" r="150"
+      <circle id="sunHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="150"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

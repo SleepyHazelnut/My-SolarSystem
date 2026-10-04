@@ -23,7 +23,7 @@
 import saturn_base from '../../assets/saturn/saturn_base.png';
 import saturn_ring from '../../assets/saturn/saturn_ring.png';
 
-import { BODY_C, CANVAS_T, SATURN, SEAM_B, SEAM_M, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, SEAM_B, SEAM_M, VIEW } from './anim.js';
 
 /* 分界线上、下各取一个远点，围成「近侧」半平面（局部坐标）。 */
 const SEAM_X = 1000;
@@ -40,7 +40,7 @@ export const SVG_SCENE = `
         </clipPath>
       </defs>
 
-      <g transform="translate(${SATURN.x} ${SATURN.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="saturn">
 
           <g id="saturnBodyWrap">
@@ -57,7 +57,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <circle id="saturnHit" cx="${(SATURN.x + BODY_C.x).toFixed(1)}" cy="${(SATURN.y + BODY_C.y).toFixed(1)}" r="162"
+      <circle id="saturnHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="162"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

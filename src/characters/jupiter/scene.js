@@ -20,13 +20,13 @@
  */
 import jupiter_base from '../../assets/jupiter/jupiter_base.png';
 
-import { BODY_C, CANVAS_T, JUPITER, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 export const SVG_SCENE = `
     <svg id="jupiterScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、可悬停的木星角色">
 
-      <g transform="translate(${JUPITER.x} ${JUPITER.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="jupiter">
 
           <g id="jupiterBodyWrap">
@@ -37,7 +37,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <circle id="jupiterHit" cx="${(JUPITER.x + BODY_C.x).toFixed(1)}" cy="${(JUPITER.y + BODY_C.y).toFixed(1)}" r="162"
+      <circle id="jupiterHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="162"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

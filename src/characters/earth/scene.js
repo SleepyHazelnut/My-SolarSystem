@@ -26,7 +26,7 @@ import eye_closed from '../../assets/earth/eye_closed.png';
 import eye_half from '../../assets/earth/eye_half.png';
 import eye_open from '../../assets/earth/eye_open.png';
 
-import { BODY_C, CANVAS_T, EARTH, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 const IMG = { earth_base, eye_closed, eye_half, eye_open };
 
@@ -34,7 +34,7 @@ export const SVG_SCENE = `
     <svg id="earthScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、会随机眨眼、可悬停的地球角色">
 
-      <g transform="translate(${EARTH.x} ${EARTH.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="earth">
 
           <g id="earthBodyWrap">
@@ -57,7 +57,7 @@ export const SVG_SCENE = `
       </g>
 
       <!-- 命中区：在 #earth 组外，不随悬停移动。圆心对准球心（BODY_C 为球心相对素材画布中心的偏移）。 -->
-      <circle id="earthHit" cx="${(EARTH.x + BODY_C.x).toFixed(1)}" cy="${(EARTH.y + BODY_C.y).toFixed(1)}" r="172"
+      <circle id="earthHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="172"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

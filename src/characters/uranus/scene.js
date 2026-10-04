@@ -20,13 +20,13 @@
  */
 import uranus_base from '../../assets/uranus/uranus_base.png';
 
-import { BODY_C, CANVAS_T, URANUS, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 export const SVG_SCENE = `
     <svg id="uranusScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、可悬停的天王星角色">
 
-      <g transform="translate(${URANUS.x} ${URANUS.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="uranus">
 
           <g id="uranusBodyWrap">
@@ -37,7 +37,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <circle id="uranusHit" cx="${(URANUS.x + BODY_C.x).toFixed(1)}" cy="${(URANUS.y + BODY_C.y).toFixed(1)}" r="162"
+      <circle id="uranusHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="162"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

@@ -19,7 +19,7 @@ import eye_half from '../../assets/mars/eye_half.png';
 import eye_open from '../../assets/mars/eye_open.png';
 import mars_base from '../../assets/mars/mars_base.png';
 
-import { BODY_C, CANVAS_T, MARS, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 const IMG = { eye_closed, eye_half, eye_open, mars_base };
 
@@ -27,7 +27,7 @@ export const SVG_SCENE = `
     <svg id="marsScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、会随机眨眼、可悬停的火星角色">
 
-      <g transform="translate(${MARS.x} ${MARS.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="mars">
 
           <g id="marsBodyWrap">
@@ -48,7 +48,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <circle id="marsHit" cx="${(MARS.x + BODY_C.x).toFixed(1)}" cy="${(MARS.y + BODY_C.y).toFixed(1)}" r="162"
+      <circle id="marsHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="162"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

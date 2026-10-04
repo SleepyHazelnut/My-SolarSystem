@@ -20,13 +20,13 @@
  */
 import neptune_base from '../../assets/neptune/neptune_base.png';
 
-import { BODY_C, CANVAS_T, NEPTUNE, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 export const SVG_SCENE = `
     <svg id="neptuneScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、可悬停的海王星角色">
 
-      <g transform="translate(${NEPTUNE.x} ${NEPTUNE.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="neptune">
 
           <g id="neptuneBodyWrap">
@@ -37,7 +37,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <circle id="neptuneHit" cx="${(NEPTUNE.x + BODY_C.x).toFixed(1)}" cy="${(NEPTUNE.y + BODY_C.y).toFixed(1)}" r="162"
+      <circle id="neptuneHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="162"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;

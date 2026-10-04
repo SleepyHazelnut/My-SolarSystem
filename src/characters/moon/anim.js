@@ -1,111 +1,47 @@
 /**
- * 动画层：月球的动作 —— 本体呼吸 + 悬停上浮 + 按压回弹。
+ * 动画层：月球的动作。
  *
- * 纯逻辑、不碰 DOM，每帧返回一组绝对值，由 `index.js` 写进 SVG 属性。
- * 姿态由 `core/motions.js` 的原语经 `compose()` 叠出，与太阳 / 地球同一套动作词汇。
+ * 纯逻辑、不碰 DOM：姿态由 `core/pose.js` 的状态机给出，本文件只声明几何与呼吸参数，
+ * 逐帧写进 DOM 由 `core/apply.js` 负责。
  *
- * ⚠️ 月球**不眨眼**：五官烘在本体图上，没有三态眼层。所以这里不接 `shared/blink.js`，
- * `step()` 也不返回 `eyes`。要加眨眼得先把眼从本体抹掉、切三态，再走抠眼流程。
+ * ⚠️ 月球**不眨眼**：五官烘在本体图上，没有三态眼层。要加眨眼得先把眼从本体抹掉、
+ * 切三态，再走抠眼流程，然后给 `createPose` 传 `blink`。
  *
- * 素材几何：`moon_base.png` 是 **1536 画布**。
- * 无睡帽层；加回时用同一份 `CANVAS_T` 原位叠加。
+ * 素材几何：`moon_base.png` 是 1536 画布。无睡帽层；加回时用同一份 `CANVAS_T` 原位叠加。
  */
-import { approach } from '../../shared/approach.js';
-import { dampedImpulse } from '../../shared/impulse.js';
-import { breath, compose, hover, press, spring } from '../../core/motions.js';
+import { createPose } from '../../core/pose.js';
 
-/** viewBox 的左上角（局部坐标）与尺寸。
- *  由所有动作的包络（呼吸 + 悬停 + 按压 + 回弹 + 入场过冲）取并集，再留边距。
- *  宽度比包络宽出约 12.5 单位/侧（按压是横向鼓起），与太阳的 13.2 单位对齐。
- *  动作幅度调大必须重算；加宽必须同步放大 `main.js` 的 `stageWidth`。 */
+/** viewBox 的左上角（局部坐标）与尺寸。由所有动作的包络取并集，再留边距。 */
 export const VIEW = { minX: -181.5, minY: -183, w: 362, h: 361 };
 
-/* 素材画布（1536）→ 局部单位。
-   0.3171：球体半径 500.5 px → 158.7 单位。 */
+/* 素材画布（1536）→ 局部单位。 */
 const K = 0.3171;
 
 /* 素材画布中心。本体按它对齐。 */
 const CANVAS_C = 768;
 
-/** 局部原点（素材画布中心）在 viewBox 里的落点 = viewBox 中心 − 动作包络中心。
- *  月球的包络以球心为心，偏 (0.63, 2.06) 单位。 */
-export const MOON = { x: -1.134, y: -4.561 };
+/* 素材球体直径（px，1536 画布）。 */
+const BALL_PX = 1001;
 
-/* 呼吸缩放的支点 = 球心（素材坐标 (770, 774.5)，球半径 ≈500.5）。 */
+/** 局部原点（素材画布中心）在 viewBox 里的落点 = viewBox 中心 − 动作包络中心。 */
+export const ORIGIN = { x: -1.134, y: -4.561 };
+
+/* 呼吸缩放的支点 = 球心（素材坐标 (770, 774.5)）。 */
 export const BODY_C = { x: K * (770 - CANVAS_C), y: K * (774.5 - CANVAS_C) };
+
+/** 球体在局部单位下的直径。`registry.js` 用它把球屏幕径换算成舞台宽。 */
+export const BALL_D = K * BALL_PX;
 
 /** 素材画布（1536）→ 局部单位 的公共变换。 */
 export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
 
 /* ---------- 动作参数 ---------- */
 
-/* 呼吸（本体）：周期 3.6 s（太阳 4.3 / 地球 3.2）。
-   纵向为主，横向跟四成；`lift` 是同一条正弦驱动的纵向起伏。 */
+/* 呼吸（本体）：周期 3.6 s，纵向为主、横向跟四成。 */
 const BREATH = { dur: 3.6, amp: 0.016, lift: 3.4, wide: 0.40 };
 
-/* 悬停：整颗上抬（负 = 上）。rate 越大越跟手。 */
-const HOVER = { lift: -9, rate: 11 };
+/* 悬停 / 按压 / 回弹 / 入场：十颗一致，缺省值见 `core/pose.js` 与 `shared/intro.js`。 */
 
-/* 按压：按住时压扁并下沉。`amp` 是纵向压缩量，横向按 `wide` 反向鼓；`rate` 越大越跟手。 */
-const PRESS = { amp: 0.065, wide: 0.75, sink: 3.0, rate: 22 };
-
-/* 松手回弹：一次冲激 + 指数衰减（`shared/impulse.js`）。
-   `omega` 决定回弹快慢，`decay` 决定几下停；`dur` 之后冲激归零。
-   sin 起手，所以松手那帧的形变是 0，与按住的姿态接得上。 */
-const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
-
-/* 入场：`dy` 是起始下移（viewBox 单位），`delay` 是错开的秒数。 */
-export const INTRO = { dur: 0.62, fromScale: 0.62, dy: 34, delay: 0 };
-
-/**
- * 建一个月球的动画实例（纯计算，不碰 DOM）。
- */
-export function createMoonAnim() {
-  let t = 0;            // 全局时间轴（秒）
-  let hoverW = 0;       // 悬停权重 0~1，指数逼近
-  let hovered = false;
-  let pressW = 0;       // 按压权重 0~1，指数逼近
-  let pressed = false;
-  let kickT = Infinity; // 松手后经过的时间（秒）；Infinity = 没有正在跑的冲激
-
-  /** 推进一帧，返回该帧要写进 DOM 的一组绝对值（单位 = viewBox）：
-   *  `bodySX` / `bodySY` 本体缩放（绕球心）、`bodyDY` 呼吸起伏 + 悬停上浮 + 按压下沉。 */
-  function step(dt) {
-    t += dt;
-    hoverW = approach(hoverW, hovered ? 1 : 0, HOVER.rate, dt);
-    pressW = approach(pressW, pressed ? 1 : 0, PRESS.rate, dt);
-
-    /* 松手回弹：`dampedImpulse` 的幅值固定取 1，幅度交给 `spring()` 的 `amp`。 */
-    let kickU = 0;
-    if (kickT !== Infinity) {
-      kickU = dampedImpulse(kickT, 1, KICK.decay, KICK.omega);
-      kickT += dt;
-      if (kickT >= KICK.dur) kickT = Infinity;
-    }
-
-    const v = compose(
-      breath(t, BREATH),
-      hover(hoverW, HOVER),
-      press(pressW, PRESS),
-      spring(kickU, KICK),
-    );
-
-    return {
-      bodySX: v.sx,
-      bodySY: v.sy,
-      bodyDY: v.dy,
-      t,
-    };
-  }
-
-  return {
-    step,
-    setHover(v) { hovered = v; },
-    /** 按下 / 松手。松手起一次回弹冲激；按下时中断上一次未跑完的冲激。 */
-    setDown(v) {
-      if (v === pressed) return;
-      pressed = v;
-      kickT = v ? Infinity : 0;
-    },
-  };
+export function createMoonAnim(opts) {
+  return createPose({ ...opts, breath: BREATH });
 }

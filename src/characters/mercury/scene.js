@@ -23,7 +23,7 @@ import eye_half from '../../assets/mercury/eye_half.png';
 import eye_open from '../../assets/mercury/eye_open.png';
 import mercury_base from '../../assets/mercury/mercury_base.png';
 
-import { BODY_C, CANVAS_T, MERCURY, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
 
 const IMG = { eye_closed, eye_half, eye_open, mercury_base };
 
@@ -31,7 +31,7 @@ export const SVG_SCENE = `
     <svg id="mercuryScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
          aria-label="会呼吸、会随机眨眼、可悬停的水星角色">
 
-      <g transform="translate(${MERCURY.x} ${MERCURY.y})">
+      <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="mercury">
 
           <g id="mercuryBodyWrap">
@@ -52,7 +52,7 @@ export const SVG_SCENE = `
         </g>
       </g>
 
-      <circle id="mercuryHit" cx="${(MERCURY.x + BODY_C.x).toFixed(1)}" cy="${(MERCURY.y + BODY_C.y).toFixed(1)}" r="149"
+      <circle id="mercuryHit" cx="${(ORIGIN.x + BODY_C.x).toFixed(1)}" cy="${(ORIGIN.y + BODY_C.y).toFixed(1)}" r="149"
               fill="transparent" style="pointer-events: all" />
     </svg>
 `;
