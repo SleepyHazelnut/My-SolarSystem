@@ -3,11 +3,11 @@
  *
  * 每个角色在 `main.js` 的 register 那一行给一组轨道参数，这里换算成 CSS 变量：
  *   `--x` / `--y`   球心在整块里的位置（%）
- *   `--w`           舞台宽（%）
+ *   `--w`           舞台宽（%），已含 `meta.scale`
  *   `--ax` / `--ay` 球心在舞台内的位置（%，负值），用 translate 把它对到 `--x/--y`
  * 轨道圈接在 `[data-orbit="<名字>"]` 上：`--ox` / `--oy`（圆心）、`--od`（直径）。
  *
- * 轨道半径的基准 `R` = 块半边 − 最外那颗球的半径，保证球不超出块。
+ * 轨道半径的基准 `R` = 块半边。
  */
 
 /* 标称块边长（px）。球径与轨道半径都以它为基准，整块随视口等比缩放。 */
@@ -33,14 +33,8 @@ function applyLayout(targets, orbits) {
   const half = S / 2;
   const meta = new Map(targets.map(({ name, entry }) => [name, entry.meta || {}]));
 
-  let maxOrbit = 0;
-  let outerBall = 0;
-  for (const [, m] of meta) {
-    const o = m.orbit || 0;
-    if (o > maxOrbit) { maxOrbit = o; outerBall = m.ball || 0; }
-    else if (o === maxOrbit) outerBall = Math.max(outerBall, m.ball || 0);
-  }
-  const R = half - outerBall / 2;
+  /* 轨道半径的基准 = 块半边。球不超出块由 `ORBIT` / `ANGLE` 的取值保证。 */
+  const R = half;
 
   /* 球心位置（px，相对块中心）。带 `parent` 的叠在父角色上（月球绕地球）。 */
   const pos = new Map();
@@ -69,7 +63,7 @@ function applyLayout(targets, orbits) {
     if (w && h) el.style.aspectRatio = `${w} / ${h}`;
     el.style.setProperty('--x', pct((half + cx) / S));
     el.style.setProperty('--y', pct((half + cy) / S));
-    el.style.setProperty('--w', pct(m.body ? (m.ball * w) / m.body / S : 0));
+    el.style.setProperty('--w', pct(m.body ? (m.ball * (m.scale || 1) * w) / m.body / S : 0));
     el.style.setProperty('--ax', pct(-px / w));
     el.style.setProperty('--ay', pct(-py / h));
 

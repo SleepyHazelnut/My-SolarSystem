@@ -9,8 +9,9 @@
 <body>
   <main class="hero">
     <!-- 星系平面图：太阳居中，行星在同心轨道上。
-         轨道圈与每个角色的位置、大小都由 src/core/registry.js 从 src/main.js 的
-         registerCharacter 参数换算，这里只放占位元素。 -->
+         九条轨道圈都写在这里，`src/main.js` 按它的 `RINGS` 把不渲染的摘掉 ——
+         换要显示哪几条只改那一个数组。
+         位置与尺寸由 src/core/registry.js 从 src/main.js 的 registerCharacter 参数换算。 -->
     <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
     <div class="orbit" data-orbit="mercury"></div>
     <div class="orbit" data-orbit="venus"></div>
