@@ -1,16 +1,17 @@
 /**
- * 角色注册表 + `[data-character]` 自动挂载。
+ * 角色注册表 + `[data-character]` 自动挂载 + 星系轨道布局。
  *
- * 加一个星球三步：写角色模块、在 `main.js` 里 `registerCharacter` 一行、
- * 在 HTML 里放一个 `<div class="stage" data-character="<名字>"></div>`。
- * 标称尺寸写在 register 那一行；**怎么排、窄屏怎么缩**是 `style.css` 的事，
- * 这里只把尺寸换算成整行的比例交出去。
+ * 每个角色在 `main.js` 的 register 那一行给一组轨道参数，这里换算成 CSS 变量：
+ *   `--x` / `--y`   球心在整块里的位置（%）
+ *   `--w`           舞台宽（%）
+ *   `--ax` / `--ay` 球心在舞台内的位置（%，负值），用 translate 把它对到 `--x/--y`
+ * 轨道圈接在 `[data-orbit="<名字>"]` 上：`--ox` / `--oy`（圆心）、`--od`（直径）。
  *
- * 注册重名直接抛错；未注册的名字只 warn 并跳过，其余角色照常显示。
+ * 轨道半径的基准 `R` = 块半边 − 最外那颗球的半径，保证球不超出块。
  */
 
-/* 行内视觉间距（标称 px）：相邻角色墨迹边缘之间的距离。 */
-const VISUAL_GAP = 60;
+/* 标称块边长（px）。球径与轨道半径都以它为基准，整块随视口等比缩放。 */
+const STAGE = 864;
 
 const REGISTRY = new Map();
 
@@ -19,36 +20,68 @@ export function registerCharacter(name, mount, meta = {}) {
   REGISTRY.set(name, { mount, meta });
 }
 
-/** 读一条注册项的标称尺寸。`pad` = 两侧透明边宽；缺 `ink` 时按整幅 viewBox 算。 */
-function metrics({ viewBox = [], stageWidth = 0, ink = 0 } = {}) {
-  const [w = 0, h = 0] = viewBox;
-  const inkW = w ? stageWidth * (ink || w) / w : stageWidth;
-  return {
-    stageWidth,
-    pad: (stageWidth - inkW) / 2,
-    height: w ? stageWidth * h / w : 0,
-  };
+const pct = (v) => `${(v * 100).toFixed(4)}%`;
+
+/* 极坐标 → 直角坐标。角度单位是度，0° 指向右，顺时针为正。 */
+function polar(r, angle) {
+  const t = (angle * Math.PI) / 180;
+  return [r * Math.cos(t), r * Math.sin(t)];
 }
 
-/** 把一行角色的标称尺寸换算成 CSS 变量。
- *  分母 = 视觉总宽 = Σ墨迹宽 + 角色数 × `VISUAL_GAP`：
- *    · `--stage-w-pct`      舞台宽 / 视觉总宽
- *    · `--stage-margin-pct` 透明边扣掉 `VISUAL_GAP/2`
- *    · `--row-ar`（根元素） 视觉总宽 / 最高舞台 —— 给 `.hero` 当 `aspect-ratio` */
-function applyRow(targets) {
-  const rows = targets.map(({ entry }) => metrics(entry.meta));
-  const span = rows.reduce((s, r) => s + r.stageWidth - 2 * r.pad, 0) + rows.length * VISUAL_GAP;
-  const tall = Math.max(...rows.map(r => r.height));
+function applyLayout(targets, orbits) {
+  const S = STAGE;
+  const half = S / 2;
+  const meta = new Map(targets.map(({ name, entry }) => [name, entry.meta || {}]));
 
-  targets.forEach(({ el, name, entry }, i) => {
-    const { viewBox } = entry.meta || {};
+  let maxOrbit = 0;
+  let outerBall = 0;
+  for (const [, m] of meta) {
+    const o = m.orbit || 0;
+    if (o > maxOrbit) { maxOrbit = o; outerBall = m.ball || 0; }
+    else if (o === maxOrbit) outerBall = Math.max(outerBall, m.ball || 0);
+  }
+  const R = half - outerBall / 2;
+
+  /* 球心位置（px，相对块中心）。带 `parent` 的叠在父角色上（月球绕地球）。 */
+  const pos = new Map();
+  const resolve = (name) => {
+    if (pos.has(name)) return pos.get(name);
+    const m = meta.get(name) || {};
+    const o = m.orbit || 0;
+    let v = [0, 0];
+    if (o) {
+      const [dx, dy] = polar(o * R, m.angle || 0);
+      const p = m.parent ? resolve(m.parent) : [0, 0];
+      v = [p[0] + dx, p[1] + dy];
+    }
+    pos.set(name, v);
+    return v;
+  };
+  for (const [name] of meta) resolve(name);
+
+  for (const { name, el, entry } of targets) {
+    const m = meta.get(name);
+    const [w = 0, h = 0] = m.viewBox || [];
+    const [cx, cy] = pos.get(name);
+    const [px, py] = m.pivot || [w / 2, h / 2];
+
     el.classList.add(`${name}-stage`);
-    if (viewBox) el.style.aspectRatio = `${viewBox[0]} / ${viewBox[1]}`;
-    el.style.setProperty('--stage-w-pct', (rows[i].stageWidth / span * 100).toFixed(4) + '%');
-    el.style.setProperty('--stage-margin-pct', ((VISUAL_GAP / 2 - rows[i].pad) / span * 100).toFixed(4) + '%');
-  });
+    if (w && h) el.style.aspectRatio = `${w} / ${h}`;
+    el.style.setProperty('--x', pct((half + cx) / S));
+    el.style.setProperty('--y', pct((half + cy) / S));
+    el.style.setProperty('--w', pct(m.body ? (m.ball * w) / m.body / S : 0));
+    el.style.setProperty('--ax', pct(-px / w));
+    el.style.setProperty('--ay', pct(-py / h));
 
-  if (tall) document.documentElement.style.setProperty('--row-ar', (span / tall).toFixed(4));
+    const orbitEl = orbits.get(name);
+    if (orbitEl) {
+      /* 轨道圆心是「被绕的那颗」——行星绕太阳（块中心），月球绕地球。 */
+      const [ox, oy] = m.parent ? pos.get(m.parent) : [0, 0];
+      orbitEl.style.setProperty('--ox', pct((half + ox) / S));
+      orbitEl.style.setProperty('--oy', pct((half + oy) / S));
+      orbitEl.style.setProperty('--od', pct((2 * (m.orbit || 0) * R) / S));
+    }
+  }
 }
 
 /**
@@ -67,6 +100,9 @@ export function mountAll(scope = document) {
     targets.push({ el, name, entry });
   }
 
-  applyRow(targets);
+  const orbits = new Map();
+  for (const el of scope.querySelectorAll('[data-orbit]')) orbits.set(el.dataset.orbit, el);
+
+  applyLayout(targets, orbits);
   return targets.map(({ name, el, entry }) => ({ name, instance: entry.mount(el) }));
 }

@@ -1,7 +1,8 @@
 :root {
   --bg: #FFF5E6;          /* 页面底色 */
   --ink: #3A2E1E;
-  --row-max: 1600px;      /* 整行宽度上限 */
+  --orbit: #D9C7A8;       /* 轨道虚线 */
+  --hero-max: 1600px;     /* 整块边长上限 */
 }
 
 * { box-sizing: border-box; }
@@ -20,29 +21,36 @@ body {
   container-type: size;   /* 让 `.hero` 能用 `cqh` 读到可用高度 */
 }
 
-/* ---------- 舞台 ---------- */
+/* ---------- 星系平面图 ---------- */
 
-/* 角色**一行**排布，整行等比内接在视口里。
-   宽度 = min(容器宽, `--row-max`, `--row-ar` × 容器高)；`--row-ar` 由 `registry.js` 推出。
+/* 整块：正方形，边长 = min(容器宽, `--hero-max`, 容器高)。
    ⚠️ 宽度只能在这里一次算死，别改成用 `max-width` 夹。 */
 .hero {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: min(100%, var(--row-max), calc(var(--row-ar, 2) * 100cqh));
-  aspect-ratio: var(--row-ar, 2);
+  position: relative;
+  width: min(100%, var(--hero-max), 100cqh);
+  aspect-ratio: 1;
 }
 
-/* 角色共用：宽度与横向外边距都由 `registry.js` 写进行内样式 ——
-   这里不出现任何一个角色的具体数字。
-   · `width` = 舞台宽占整行比例（`--stage-w-pct`），三者相加 = 100%。
-   · `margin-inline` = 透明边扣掉 `VISUAL_GAP/2`（`--stage-margin-pct`）。
-   · 不 grow 也不 shrink。 */
+/* 轨道圈：圆心与直径由 `registry.js` 写进行内样式。 */
+.orbit {
+  position: absolute;
+  left: var(--ox, 50%);
+  top: var(--oy, 50%);
+  width: var(--od, 0%);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px dashed var(--orbit);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* 角色：球心（不是盒子中心）落在 `--x` / `--y` 上。 */
 .stage {
-  flex: 0 0 auto;
-  width: var(--stage-w-pct, 33.3333%);
-  margin-inline: var(--stage-margin-pct, 0%);
-  min-width: 0;
+  position: absolute;
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  width: var(--w, 10%);
+  transform: translate(var(--ax, -50%), var(--ay, -50%));
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
