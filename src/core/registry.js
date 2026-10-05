@@ -5,6 +5,7 @@
  *   `--x` / `--y`   球心在整块里的位置（%）
  *   `--w`           舞台宽（%），已含 `meta.scale`
  *   `--ax` / `--ay` 球心在舞台内的位置（%，负值），用 translate 把它对到 `--x/--y`
+ *   `--rot`         球体自转角（度），绕球心
  * 轨道圈接在 `[data-orbit="<名字>"]` 上：`--ox` / `--oy`（圆心）、`--od`（直径）。
  *
  * 轨道半径的基准 `R` = 块半边。
@@ -71,6 +72,7 @@ function applyLayout(targets, orbits) {
     el.style.setProperty('--w', pct(m.ballD ? (m.ball * (m.scale || 1) * w) / m.ballD / S : 0));
     el.style.setProperty('--ax', pct(-px / w));
     el.style.setProperty('--ay', pct(-py / h));
+    el.style.setProperty('--rot', `${m.rot || 0}deg`);
 
     const orbitEl = orbits.get(name);
     if (orbitEl) {
@@ -88,6 +90,7 @@ function applyLayout(targets, orbits) {
 
 /**
  * 挂载 `scope` 下所有 `[data-character]`。
+ * `meta.intro` 原样转给 `mount`（入场形状的覆盖项）。
  * @returns `{ mounted, layout }` —— `mounted` 顺序即 DOM 顺序；`layout` 是静止布局，供 `orbit-drift.js` 吃
  */
 export function mountAll(scope = document) {
@@ -106,6 +109,8 @@ export function mountAll(scope = document) {
   for (const el of scope.querySelectorAll('[data-orbit]')) orbits.set(el.dataset.orbit, el);
 
   const layout = applyLayout(targets, orbits);
-  const mounted = targets.map(({ name, el, entry }) => ({ name, instance: entry.mount(el) }));
+  const mounted = targets.map(({ name, el, entry }) => ({
+    name, instance: entry.mount(el, { intro: entry.meta.intro }),
+  }));
   return { mounted, layout };
 }

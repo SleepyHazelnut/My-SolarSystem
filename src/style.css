@@ -21,6 +21,16 @@ body {
   container-type: size;   /* 让 `.hero` 能用 `cqh` 读到可用高度 */
 }
 
+/* 背景星点：铺满视口，靠 DOM 顺序排在 `.hero` 下面。 */
+.stars {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  fill: #A89474;
+}
+
 /* ---------- 星系平面图 ---------- */
 
 /* 整块：正方形，边长 = min(容器宽, `--hero-max`, 容器高)。
@@ -44,13 +54,15 @@ body {
   pointer-events: none;
 }
 
-/* 角色：球心（不是盒子中心）落在 `--x` / `--y` 上。 */
+/* 角色：球心（不是盒子中心）落在 `--x` / `--y` 上；`--rot` 绕球心自转，
+   支点由 `--ax` / `--ay` 反算（那两个值本来就是「球心相对舞台盒」的负百分比）。 */
 .stage {
   position: absolute;
   left: var(--x, 50%);
   top: var(--y, 50%);
   width: var(--w, 10%);
-  transform: translate(var(--ax, -50%), var(--ay, -50%));
+  transform-origin: calc(-1 * var(--ax, -50%)) calc(-1 * var(--ay, -50%));
+  transform: translate(var(--ax, -50%), var(--ay, -50%)) rotate(var(--rot, 0deg));
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;

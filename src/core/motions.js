@@ -13,9 +13,9 @@
  */
 
 /** 呼吸：非等比缩放 + 纵向起伏，由同一条正弦驱动（鼓起来的同时浮起来）。
- *  `wide` 是横向相对纵向的比例，0.40 表示横向只跟四成。 */
-export function breath(t, { dur, amp, lift = 0, wide = 0.40 }) {
-  const ph = (t / dur) * Math.PI * 2;
+ *  `wide` 是横向相对纵向的比例，0.40 表示横向只跟四成；`phase` 是起始相位（弧度）。 */
+export function breath(t, { dur, amp, lift = 0, wide = 0.40, phase = 0 }) {
+  const ph = (t / dur) * Math.PI * 2 + phase;
   const s = Math.sin(ph) * amp;
   return { sx: 1 - s * wide, sy: 1 + s, dy: Math.sin(ph) * lift };
 }

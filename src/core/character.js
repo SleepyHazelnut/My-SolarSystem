@@ -10,7 +10,10 @@
  *
  * 可选：
  *   hit          命中区选择器，默认 `'#hit'`
- *   intro        入场形状，缺省用 `shared/intro.js` 的默认值
+ *   intro        入场形状（`dur` / `fromScale` / `dy` / `delay`），缺省项用 `shared/intro.js` 的默认值
+ *
+ * `mount(root, { playIntro, intro })`：`playIntro = false` 直接给终态；
+ * `intro` 只覆盖传进来的那几项（`main.js` 的错开用它补 `delay`）。
  *
  * ⚠️ 首帧必须立刻按入场起始姿态写一次（`tick(0, 0)`）。
  */
@@ -20,7 +23,7 @@ import { createIntro } from '../shared/intro.js';
 import { bindPointerInput } from '../shared/input.js';
 
 export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro } = {}) {
-  return function mount(root, { intro: playIntro = true } = {}) {
+  return function mount(root, { playIntro = true, intro: introParams } = {}) {
     if (!root) throw new Error('mount: 缺少挂载容器');
 
     root.innerHTML = scene;
@@ -34,7 +37,7 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
 
     /* `matchMedia` 是 DOM 的事，判断放在这里；`createIntro` 只收结果 */
     const REDUCED = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    const introFx = createIntro({ params: intro, enabled: playIntro && !REDUCED });
+    const introFx = createIntro({ params: { ...intro, ...introParams }, enabled: playIntro && !REDUCED });
     const { apply } = setup(root);
 
     let last = null;
@@ -65,7 +68,7 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
 
     return {
       ready: true,
-      /** 是否播了入场（`prefers-reduced-motion: reduce` 或 `{ intro: false }` 时为 false） */
+      /** 是否播了入场（`prefers-reduced-motion: reduce` 或 `{ playIntro: false }` 时为 false） */
       get intro() { return introFx.playing; },
       /** 探针：上一帧的完整数值快照（只读） */
       get last() { return last; },

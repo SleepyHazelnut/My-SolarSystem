@@ -9,7 +9,7 @@
  */
 import { easeOutBack } from './easing.js';
 
-/** 入场形状的兜底值；角色在 `anim.js` 里给自己的 `INTRO` 覆盖。 */
+/** 入场形状的兜底值；角色在 `anim.js` 里给自己的 `INTRO` 覆盖，`main.js` 的错开只补 `delay`。 */
 export const INTRO_DEFAULT = {
   dur: 0.62,         // 秒
   fromScale: 0.62,   // 起始缩放（相对静止姿态）
@@ -20,12 +20,12 @@ export const INTRO_DEFAULT = {
 /**
  * 入场进度器：每帧给一次 `dt`，拿回要写进 DOM 的三个量。
  *
- * @param params   入场形状，缺省用 `INTRO_DEFAULT`
+ * @param params   入场形状，只写要覆盖的那几项，其余由 `INTRO_DEFAULT` 补
  * @param enabled  false = 直接是终态（`prefers-reduced-motion` / 逐帧截图脚本）；
  *                 `matchMedia` 由调用方判断后传进来
  */
-export function createIntro({ params = INTRO_DEFAULT, enabled = true } = {}) {
-  const { dur, fromScale, dy, delay } = params;
+export function createIntro({ params = {}, enabled = true } = {}) {
+  const { dur, fromScale, dy, delay } = { ...INTRO_DEFAULT, ...params };
   let t = enabled ? -delay : dur;
 
   /** 当前该写进 DOM 的三个量。

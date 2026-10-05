@@ -1,8 +1,9 @@
 /**
  * 轨道摆动：每颗行星在自己角度附近做小幅正弦摆动。
  *
- * 吃 `registry.js` 算出的静止布局（球心在块里的百分数与父子关系），逐帧改写 `--x` / `--y`。
- * 半径不变，只动角度 —— 摆幅上限见 `src/main.js` 的 `DRIFT`。
+ * 吃 `registry.js` 算出的静止布局（球心在块里的百分数与父子关系），逐帧改写 `.stage` 的
+ * `transform`；静止位置仍由 `registry.js` 写在 `--x` / `--y` 上。半径不变，只动角度，
+ * 摆幅上限见 `src/main.js` 的 `DRIFT`。
  *
  * 参数：
  *   `items`   `[{ name, el, x, y, parent }]`，顺序决定周期递增
@@ -35,12 +36,23 @@ export function startOrbitDrift({ items: rows = [], amp = 6, period = 22, spread
     i += 1;
   }
 
+  /* 块宽：`--x` / `--y` 是块宽的百分比，`transform` 要 px。 */
+  const host = items[0] ? items[0].el.parentElement : null;
+  let blockW = 0;
+  const measure = () => { blockW = host ? host.getBoundingClientRect().width : 0; };
+  measure();
+  window.addEventListener('resize', measure);
+
+  /* 行内 transform 覆盖 `.stage` 的 CSS，支点 translate 要一并写上。 */
   const write = (it, x, y) => {
-    it.el.style.setProperty('--x', x.toFixed(4) + '%');
-    it.el.style.setProperty('--y', y.toFixed(4) + '%');
+    const dx = ((x - it.x) * blockW) / 100;
+    const dy = ((y - it.y) * blockW) / 100;
+    it.el.style.transform =
+      `translate(${dx.toFixed(3)}px, ${dy.toFixed(3)}px) translate(var(--ax), var(--ay))`;
   };
 
   function tick(time) {
+    if (!blockW) measure();
     const shift = new Map();
 
     for (const it of items) {
@@ -60,5 +72,10 @@ export function startOrbitDrift({ items: rows = [], amp = 6, period = 22, spread
   }
 
   gsap.ticker.add(tick);
-  return { destroy: () => gsap.ticker.remove(tick) };
+  return {
+    destroy: () => {
+      gsap.ticker.remove(tick);
+      window.removeEventListener('resize', measure);
+    },
+  };
 }
