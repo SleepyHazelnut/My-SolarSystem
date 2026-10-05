@@ -9,22 +9,11 @@
 <body>
   <main class="hero">
     <!-- 星系平面图：太阳居中，行星在同心轨道上。
-         九条轨道圈都写在这里，`src/main.js` 按它的 `RINGS` 把不渲染的摘掉 ——
-         换要显示哪几条只改那一个数组。
-         位置与尺寸由 src/core/registry.js 从 src/main.js 的 registerCharacter 参数换算。 -->
-    <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
-    <div class="orbit" data-orbit="mercury"></div>
-    <div class="orbit" data-orbit="venus"></div>
-    <div class="orbit" data-orbit="earth"></div>
-    <div class="orbit" data-orbit="mars"></div>
-    <div class="orbit" data-orbit="jupiter"></div>
-    <div class="orbit" data-orbit="saturn"></div>
-    <div class="orbit" data-orbit="uranus"></div>
-    <div class="orbit" data-orbit="neptune"></div>
-    <div class="orbit" data-orbit="moon"></div>
-
-    <!-- DOM 顺序 = 绘制顺序（后声明者在上）。四颗巨行星排在内圈之前，
+         轨道圈由 `src/main.js` 按它的 `RINGS` 生成，插在本块最前面（在球下面）。
+         舞台的位置与尺寸由 `src/core/registry.js` 从那张角色表换算。
+         DOM 顺序 = 绘制顺序（后声明者在上）：四颗巨行星排在内圈之前，
          免得它们的球盖住内圈的角色。 -->
+    <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
     <div class="stage" data-character="sun"></div>
     <div class="stage" data-character="jupiter"></div>
     <div class="stage" data-character="saturn"></div>

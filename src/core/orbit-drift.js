@@ -1,39 +1,36 @@
 /**
  * 轨道摆动：每颗行星在自己角度附近做小幅正弦摆动。
  *
- * 读 `[data-character]` 上 `registry.js` 写好的 `--x` / `--y` 作为基线，逐帧改写这两个变量。
+ * 吃 `registry.js` 算出的静止布局（球心在块里的百分数与父子关系），逐帧改写 `--x` / `--y`。
  * 半径不变，只动角度 —— 摆幅上限见 `src/main.js` 的 `DRIFT`。
  *
  * 参数：
+ *   `items`   `[{ name, el, x, y, parent }]`，顺序决定周期递增
  *   `amp`     角度摆幅（度）
  *   `period`  基准周期（秒），整圈来回一次
  *   `spread`  每颗递增的周期差（秒），错开节奏
- *   `parents` 角色名 → 父角色名；列在这里的角色不自己摆，跟着父角色平移
  */
 import gsap from 'gsap';
 
-export function startOrbitDrift({ amp = 6, period = 22, spread = 1.6, parents = {} } = {}) {
+export function startOrbitDrift({ items: rows = [], amp = 6, period = 22, spread = 1.6 } = {}) {
   const items = [];
   let i = 0;
 
-  for (const el of document.querySelectorAll('[data-character]')) {
-    const x = parseFloat(el.style.getPropertyValue('--x'));
-    const y = parseFloat(el.style.getPropertyValue('--y'));
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-
-    const dx = x - 50;
-    const dy = y - 50;
+  for (const row of rows) {
+    const dx = row.x - 50;
+    const dy = row.y - 50;
     const r = Math.hypot(dx, dy);
     if (r < 1e-3) continue;                       /* 落在块中心的那颗没有轨道 */
 
     items.push({
-      name: el.dataset.character,
-      el,
-      x, y,
+      name: row.name,
+      el: row.el,
+      x: row.x,
+      y: row.y,
       a: Math.atan2(dy, dx),
       r,
       w: (Math.PI * 2) / (period + i * spread),
-      parent: parents[el.dataset.character] || null,
+      parent: row.parent,
     });
     i += 1;
   }

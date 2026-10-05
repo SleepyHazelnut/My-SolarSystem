@@ -1,7 +1,7 @@
 /**
  * 角色注册表 + `[data-character]` 自动挂载 + 星系轨道布局。
  *
- * 每个角色在 `main.js` 的 register 那一行给一组轨道参数，这里换算成 CSS 变量：
+ * 每个角色在 `main.js` 的表里给一行轨道参数，这里换算成 CSS 变量：
  *   `--x` / `--y`   球心在整块里的位置（%）
  *   `--w`           舞台宽（%），已含 `meta.scale`
  *   `--ax` / `--ay` 球心在舞台内的位置（%，负值），用 translate 把它对到 `--x/--y`
@@ -28,6 +28,8 @@ function polar(r, angle) {
   return [r * Math.cos(t), r * Math.sin(t)];
 }
 
+/** 写 CSS 变量。
+ *  @returns 静止布局 `[{ name, el, x, y, parent }]`，`x` / `y` 是球心在块里的百分数 */
 function applyLayout(targets, orbits) {
   const S = STAGE;
   const half = S / 2;
@@ -53,17 +55,20 @@ function applyLayout(targets, orbits) {
   };
   for (const [name] of meta) resolve(name);
 
+  const layout = [];
   for (const { name, el, entry } of targets) {
     const m = meta.get(name);
     const [w = 0, h = 0] = m.viewBox || [];
     const [cx, cy] = pos.get(name);
     const [px, py] = m.pivot || [w / 2, h / 2];
+    const x = (half + cx) / S;
+    const y = (half + cy) / S;
 
     el.classList.add(`${name}-stage`);
     if (w && h) el.style.aspectRatio = `${w} / ${h}`;
-    el.style.setProperty('--x', pct((half + cx) / S));
-    el.style.setProperty('--y', pct((half + cy) / S));
-    el.style.setProperty('--w', pct(m.body ? (m.ball * (m.scale || 1) * w) / m.body / S : 0));
+    el.style.setProperty('--x', pct(x));
+    el.style.setProperty('--y', pct(y));
+    el.style.setProperty('--w', pct(m.ballD ? (m.ball * (m.scale || 1) * w) / m.ballD / S : 0));
     el.style.setProperty('--ax', pct(-px / w));
     el.style.setProperty('--ay', pct(-py / h));
 
@@ -75,12 +80,15 @@ function applyLayout(targets, orbits) {
       orbitEl.style.setProperty('--oy', pct((half + oy) / S));
       orbitEl.style.setProperty('--od', pct((2 * (m.orbit || 0) * R) / S));
     }
+
+    layout.push({ name, el, x: x * 100, y: y * 100, parent: m.parent || null });
   }
+  return layout;
 }
 
 /**
  * 挂载 `scope` 下所有 `[data-character]`。
- * @returns `[{ name, instance }, …]` —— 顺序即 DOM 顺序
+ * @returns `{ mounted, layout }` —— `mounted` 顺序即 DOM 顺序；`layout` 是静止布局，供 `orbit-drift.js` 吃
  */
 export function mountAll(scope = document) {
   const targets = [];
@@ -97,6 +105,7 @@ export function mountAll(scope = document) {
   const orbits = new Map();
   for (const el of scope.querySelectorAll('[data-orbit]')) orbits.set(el.dataset.orbit, el);
 
-  applyLayout(targets, orbits);
-  return targets.map(({ name, el, entry }) => ({ name, instance: entry.mount(el) }));
+  const layout = applyLayout(targets, orbits);
+  const mounted = targets.map(({ name, el, entry }) => ({ name, instance: entry.mount(el) }));
+  return { mounted, layout };
 }
