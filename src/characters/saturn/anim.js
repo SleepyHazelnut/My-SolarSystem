@@ -44,8 +44,8 @@ export const SEAM_M = 0.4649;
 
 /* ---------- 动作参数 ---------- */
 
-/* 呼吸（本体）：周期 4.5 s，纵向为主、横向跟四成。 */
-const BREATH = { dur: 4.5, amp: 0.016, lift: 3.0, wide: 0.40 };
+/* 呼吸（本体）：周期 4.5 s，纵向为主。 */
+const BREATH = { dur: 4.5, amp: 0.014, lift: 3.0, wide: 0.44, phase: 5.9 };
 
 /* 悬停 / 按压 / 回弹 / 入场：十颗一致，缺省值见 `core/pose.js` 与 `shared/intro.js`。 */
 

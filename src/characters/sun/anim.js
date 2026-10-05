@@ -37,8 +37,8 @@ export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
 
 /* ---------- 动作参数 ---------- */
 
-/* 呼吸（本体）：周期 4.3 s，纵向为主、横向跟四成。幅度受火焰边缘限制。 */
-const BREATH = { dur: 4.3, amp: 0.018, lift: 2.4, wide: 0.40 };
+/* 呼吸（本体）：周期 4.3 s，纵向为主。幅度受火焰边缘限制。 */
+const BREATH = { dur: 4.3, amp: 0.017, lift: 2.4, wide: 0.40, phase: 0.9 };
 
 /* 悬停 / 按压 / 回弹 / 入场 / 眨眼：十颗一致，缺省值见 `core/pose.js` 与 `shared/blink.js`。 */
 
