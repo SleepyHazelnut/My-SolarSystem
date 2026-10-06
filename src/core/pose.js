@@ -2,7 +2,8 @@
  * 姿态状态机：呼吸 + 悬停 + 按压 + 松手回弹，可选接眨眼。
  *
  * 每帧吃一次 `dt`，吐一组绝对值（单位 = viewBox）：
- *   `bodySX` / `bodySY` 本体缩放（绕球心）、`bodyDY` 纵向位移、`t` 全局时间。
+ *   `bodySX` / `bodySY` 本体缩放（绕球心）、`bodyDY` 纵向位移、`t` 全局时间、
+ *   `kick` 松手回弹的冲激值（±1 以内，没在播时为 0）。
  * 接了眨眼再多吐 `eyes` = [睁, 半闭, 闭] 与 `blink`（闭眼量 0~1）。
  *
  * 参数只传要偏离默认值的项：`breath` 必给（各角色周期不同），
@@ -71,7 +72,7 @@ export function createPose({
       spring(kickU, kickParams),
     );
 
-    const out = { bodySX: v.sx, bodySY: v.sy, bodyDY: v.dy, t };
+    const out = { bodySX: v.sx, bodySY: v.sy, bodyDY: v.dy, t, kick: kickU };
     if (blinkLayer) {
       const b = blinkLayer.value();
       out.eyes = eyeWeights(b);

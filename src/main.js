@@ -47,12 +47,12 @@ const INTRO_STEP = 0.13;
    半径、角度、自转都是手摆的，不做等分。 */
 const TABLE = [
   { name: 'sun', mod: sun, ball: SUN_BALL, rot: -1.1, intro: { dur: 0.66, fromScale: 0.58, dy: 30 } },
-  { name: 'mercury', mod: mercury, orbit: 0.62850, angle: 29.21, step: 2, rot: 2.9, intro: { dur: 0.54, fromScale: 0.68, dy: 34 } },
-  { name: 'venus', mod: venus, orbit: 0.68050, angle: 334.28, step: 3, rot: -3.4, intro: { dur: 0.62, fromScale: 0.60, dy: 26 } },
-  { name: 'earth', mod: earth, orbit: 0.77300, angle: 133.19, step: 4, rot: 1.7, intro: { dur: 0.58, fromScale: 0.66, dy: 33 } },
+  { name: 'mercury', mod: mercury, orbit: 0.71850, angle: 29.21, step: 2, rot: 2.9, intro: { dur: 0.54, fromScale: 0.68, dy: 34 } },
+  { name: 'venus', mod: venus, orbit: 0.77050, angle: 334.28, step: 3, rot: -3.4, intro: { dur: 0.62, fromScale: 0.60, dy: 26 } },
+  { name: 'earth', mod: earth, orbit: 0.86300, angle: 133.19, step: 4, rot: 1.7, intro: { dur: 0.58, fromScale: 0.66, dy: 33 } },
   { name: 'moon', mod: moon, orbit: 0.30164, angle: 209.25, step: 0, parent: 'earth', rot: -4.0, intro: { dur: 0.68, fromScale: 0.56, dy: 28 } },
-  { name: 'mars', mod: mars, orbit: 0.83250, angle: 240.72, step: 4, rot: 3.4, intro: { dur: 0.56, fromScale: 0.64, dy: 31 } },
-  { name: 'jupiter', mod: jupiter, orbit: 1.17248, angle: 318.95, step: 1, rot: -1.7, intro: { dur: 0.70, fromScale: 0.62, dy: 27 } },
+  { name: 'mars', mod: mars, orbit: 0.92250, angle: 240.72, step: 4, rot: 3.4, intro: { dur: 0.56, fromScale: 0.64, dy: 31 } },
+  { name: 'jupiter', mod: jupiter, orbit: 1.30000, angle: 318.95, step: 1, rot: -1.7, intro: { dur: 0.70, fromScale: 0.62, dy: 27 } },
   { name: 'saturn', mod: saturn, orbit: 1.22804, angle: 177.29, step: 1, rot: 2.3, intro: { dur: 0.60, fromScale: 0.57, dy: 34 } },
   { name: 'uranus', mod: uranus, orbit: 1.39134, angle: 222.61, step: 2, rot: -2.9, intro: { dur: 0.64, fromScale: 0.67, dy: 29 } },
   { name: 'neptune', mod: neptune, orbit: 1.43557, angle: 30.26, step: 2, rot: 1.1, intro: { dur: 0.55, fromScale: 0.61, dy: 32 } },
