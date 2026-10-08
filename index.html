@@ -7,13 +7,11 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
+  <!-- 单角色浏览：一页一颗，底部按钮切换；地球页带月球。
+       舞台的位置与尺寸由 `src/main.js` 的浏览段写进行内样式（`--x` / `--y` / `--w`）。
+       星系平面图的轨道参数已停用，见 `src/main.js` 的 `GALAXY` 注释块。 -->
+  <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
   <main class="hero">
-    <!-- 星系平面图：太阳居中，行星在同心轨道上。
-         轨道圈由 `src/main.js` 按它的 `RINGS` 生成，插在本块最前面（在球下面）。
-         舞台的位置与尺寸由 `src/core/registry.js` 从那张角色表换算。
-         DOM 顺序 = 绘制顺序（后声明者在上）：四颗巨行星排在内圈之前，
-         免得它们的球盖住内圈的角色。 -->
-    <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
     <div class="stage" data-character="sun"></div>
     <div class="stage" data-character="jupiter"></div>
     <div class="stage" data-character="saturn"></div>
@@ -25,6 +23,12 @@
     <div class="stage" data-character="moon"></div>
     <div class="stage" data-character="mars"></div>
   </main>
+
+  <nav class="viewer-ui" aria-label="切换角色">
+    <button type="button" class="viewer-btn" data-step="-1" aria-label="上一颗">&#8249;</button>
+    <span class="viewer-name" aria-live="polite">太阳</span>
+    <button type="button" class="viewer-btn" data-step="1" aria-label="下一颗">&#8250;</button>
+  </nav>
 
   <script type="module" src="/src/main.js"></script>
 </body>
