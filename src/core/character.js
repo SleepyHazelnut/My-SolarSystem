@@ -1,5 +1,5 @@
 /**
- * 通用角色挂载器：注入 SVG、入场进度、指针输入、逐帧时钟、首帧、destroy、探针出口。
+ * 通用角色挂载器：注入 SVG、入场进度、指针输入、逐帧时钟、首帧、pause / resume、destroy、探针出口。
  *
  * 角色提供三样：
  *   scene        SVG 模板串
@@ -42,8 +42,10 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
 
     let last = null;
     let lastIntro = introFx.current();
+    let running = true;
 
     function tick(_time, deltaMs) {
+      if (!running) return;
       const dt = clampDt(deltaMs);
       introFx.step(dt);
       lastIntro = introFx.current();
@@ -66,12 +68,15 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
     /* 首帧：立刻按入场起始姿态写一次 */
     tick(0, 0);
 
-    return {
+    const api = {
       ready: true,
       /** 是否播了入场（`prefers-reduced-motion: reduce` 或 `{ playIntro: false }` 时为 false） */
       get intro() { return introFx.playing; },
       /** 探针：上一帧的完整数值快照（只读） */
       get last() { return last; },
+      /** 停掉逐帧（不在当前页的角色）。`resume()` 之前不再写 DOM。 */
+      pause() { running = false; },
+      resume() { running = true; },
       destroy() {
         gsap.ticker.remove(tick);
         ac.abort();
@@ -83,5 +88,6 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
         blinkNow: () => anim.blinkNow(),
       } : {}),
     };
+    return api;
   };
 }

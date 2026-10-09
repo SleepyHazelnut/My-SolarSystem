@@ -134,10 +134,7 @@ stars.setAttribute('aria-hidden', 'true');
 stars.innerHTML = marks.join('');
 document.body.prepend(stars);
 
-const { mounted } = mountAll();
-
-/* 暴露到 window：回归脚本靠它读状态 */
-for (const { name, instance } of mounted) window[name] = instance;
+const { mounted, ensure } = mountAll();
 
 /* ---------- 单角色浏览 ---------- */
 
@@ -187,11 +184,28 @@ const polar = (r, deg) => {
 /* 视口留白比例：给底部的切换条留点位置。 */
 const FIT = 0.95;
 
+/* 当前页索引。 */
 let page = 0;
+
+/* 懒挂载：只注入当前页与左右相邻页的角色，其余留到切过去再注入。
+   首次进入（当前页自己）给入场，之后一律直接给终态。 */
+let booted = false;
+function ensurePage(i) {
+  const n = PAGES.length;
+  for (const d of [-1, 0, 1]) {
+    for (const name of PAGES[(i + d + n) % n].chars) {
+      const instance = ensure(name, { playIntro: !booted && d === 0 });
+      /* 暴露到 window：回归脚本靠它读状态 */
+      if (instance) window[name] = instance;
+    }
+  }
+  booted = true;
+}
 
 /* 把当前页的角色摆进视口：整页等比放大到尽量占满，焦点角色落在正中。 */
 function show(i) {
   page = (i + PAGES.length) % PAGES.length;
+  ensurePage(page);
   const { label, chars } = PAGES[page];
   const vw = hero.clientWidth;
   const vh = hero.clientHeight;
@@ -223,6 +237,12 @@ function show(i) {
     el.style.setProperty('--w', `${(g.stageW * k).toFixed(2)}px`);
     el.style.setProperty('--x', `${(vw / 2 + cx * k).toFixed(2)}px`);
     el.style.setProperty('--y', `${(vh / 2 + cy * k).toFixed(2)}px`);
+  }
+
+  /* 只跑当前页角色的逐帧，其余整条停掉。 */
+  for (const { name, instance } of mounted) {
+    if (chars.includes(name)) instance.resume();
+    else instance.pause();
   }
 
   nameEl.textContent = label;

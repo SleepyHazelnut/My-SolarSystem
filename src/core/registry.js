@@ -89,9 +89,10 @@ function applyLayout(targets, orbits) {
 }
 
 /**
- * 挂载 `scope` 下所有 `[data-character]`。
+ * 登记 `scope` 下所有 `[data-character]` 并写好静止布局，但不注入 SVG。
+ * 注入按需进行，走返回的 `ensure(name, opts)`；`mounted` 按实际挂载顺序增长。
  * `meta.intro` 原样转给 `mount`（入场形状的覆盖项）。
- * @returns `{ mounted, layout }` —— `mounted` 顺序即 DOM 顺序；`layout` 是静止布局，供 `orbit-drift.js` 吃
+ * @returns `{ mounted, ensure, layout }` —— `layout` 是静止布局，供 `orbit-drift.js` 吃
  */
 export function mountAll(scope = document) {
   const targets = [];
@@ -109,8 +110,22 @@ export function mountAll(scope = document) {
   for (const el of scope.querySelectorAll('[data-orbit]')) orbits.set(el.dataset.orbit, el);
 
   const layout = applyLayout(targets, orbits);
-  const mounted = targets.map(({ name, el, entry }) => ({
-    name, instance: entry.mount(el, { intro: entry.meta.intro }),
-  }));
-  return { mounted, layout };
+
+  const slots = new Map(targets.map(({ name, el, entry }) => [name, { el, entry }]));
+  const instances = new Map();
+  const mounted = [];
+
+  /** 注入一个角色的 SVG，幂等。名字没登记过则返回 `null`。 */
+  function ensure(name, opts) {
+    const done = instances.get(name);
+    if (done) return done;
+    const slot = slots.get(name);
+    if (!slot) return null;
+    const instance = slot.entry.mount(slot.el, { ...opts, intro: slot.entry.meta.intro });
+    instances.set(name, instance);
+    mounted.push({ name, instance });
+    return instance;
+  }
+
+  return { mounted, ensure, layout };
 }
