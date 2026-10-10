@@ -29,6 +29,7 @@ export const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
  * @param press   按压参数，缺省 `PRESS`
  * @param kick    回弹参数，缺省 `KICK`
  * @param blink   `true` = 用 `shared/blink.js` 的默认口径；也可传对象覆盖其中几项；缺省不接眨眼
+ * @param reduced `prefers-reduced-motion: reduce`。呼吸幅度归零，眨眼与点击反馈保留
  * @param rand    随机源，注入是为了锁种子复现（探针用）
  */
 export function createPose({
@@ -37,11 +38,15 @@ export function createPose({
   press: pressParams = PRESS,
   kick: kickParams = KICK,
   blink: blinkParams = null,
+  reduced = false,
   rand = Math.random,
 } = {}) {
   const blinkLayer = blinkParams
     ? createBlinkLayer({ ...(blinkParams === true ? {} : blinkParams), rand })
     : null;
+
+  /* 降低动效：呼吸只留中性值。 */
+  const bp = reduced ? { ...breathParams, amp: 0, lift: 0 } : breathParams;
 
   let t = 0;            // 全局时间轴（秒）
   let hoverW = 0;       // 悬停权重 0~1，指数逼近
@@ -66,7 +71,7 @@ export function createPose({
     }
 
     const v = compose(
-      breath(t, breathParams),
+      breath(t, bp),
       hover(hoverW, hoverParams),
       press(pressW, pressParams),
       spring(kickU, kickParams),

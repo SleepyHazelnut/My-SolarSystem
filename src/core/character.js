@@ -3,8 +3,8 @@
  *
  * 角色提供三样：
  *   scene        SVG 模板串
- *   createAnim   `() => { step(dt) -> 姿态, setHover?(bool), setDown?(bool) }`，纯逻辑，见各 `anim.js`
- *   setup(root)  查元素，返回 `{ apply(v, intro) }`，把姿态写进 DOM
+ *   createAnim   `({ reduced }) => { step(dt) -> 姿态, setHover?(bool), setDown?(bool) }`，纯逻辑，见各 `anim.js`
+ *   setup(root, { reduced })  查元素，返回 `{ apply(v, intro) }`，把姿态写进 DOM
  * 指针回调按方法名转发：动画实例上写了 `setHover` / `setDown` 就调，没写就跳过。
  * 探针接口同理：写了 `blinkNow` 就额外暴露 `blink` / `blinkNow`。
  *
@@ -30,15 +30,17 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
 
     /* 所有 window 级监听统一挂到它上面，destroy() 时一次清干净 */
     const ac = new AbortController();
-    const anim = createAnim();
+
+    /* `matchMedia` 是 DOM 的事，判断放在这里；动画层与入场器只收结果 */
+    const REDUCED = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+    const anim = createAnim({ reduced: REDUCED });
 
     const hitEl = root.querySelector(hit);
     if (!hitEl) throw new Error(`mount: 找不到命中区 ${hit}`);
 
-    /* `matchMedia` 是 DOM 的事，判断放在这里；`createIntro` 只收结果 */
-    const REDUCED = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     const introFx = createIntro({ params: { ...intro, ...introParams }, enabled: playIntro && !REDUCED });
-    const { apply } = setup(root);
+    const { apply } = setup(root, { reduced: REDUCED });
 
     let last = null;
     let lastIntro = introFx.current();
@@ -83,11 +85,13 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
         root.innerHTML = '';
       },
       /* 探针接口：动画实例上写了 `blinkNow` 就转发，与指针回调同一套约定。 */
-      ...(anim.blinkNow ? {
-        get blink() { return anim.blinkValue(); },
-        blinkNow: () => anim.blinkNow(),
-      } : {}),
+      ...(anim.blinkNow ? { blinkNow: () => anim.blinkNow() } : {}),
     };
+
+    /* ⚠️ `blink` 必须走 defineProperty —— 对象展开会把它读成定值。 */
+    if (anim.blinkNow) {
+      Object.defineProperty(api, 'blink', { get: () => anim.blinkValue(), enumerable: true });
+    }
     return api;
   };
 }

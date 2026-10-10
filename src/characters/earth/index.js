@@ -20,11 +20,12 @@ import { dampedImpulse } from '../../shared/impulse.js';
 const spin = (pivot, deg) =>
   `translate(${pivot.x} ${pivot.y}) rotate(${deg.toFixed(3)}) translate(${-pivot.x} ${-pivot.y})`;
 
-function setupEarth(root) {
+function setupEarth(root, { reduced = false } = {}) {
   const base = setupPose({ name: 'earth', bodyC: BODY_C, eyes: true })(root);
 
-  /* 落叶：从初始 transform 读落位，换算成绕球心的极坐标。周期与相位按序号错开。 */
-  const leaves = [...root.querySelectorAll('#earthLeaves > g')].map((el, i) => {
+  /* 落叶：从初始 transform 读落位，换算成绕球心的极坐标。周期与相位按序号错开。
+     降低动效时留空 —— 叶子停在原位不再滑落。 */
+  const leaves = reduced ? [] : [...root.querySelectorAll('#earthLeaves > g')].map((el, i) => {
     const m = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(el.getAttribute('transform'));
     const x = +m[1], y = +m[2];
     const r = Math.hypot(x, y) || 1;
@@ -62,10 +63,10 @@ function setupEarth(root) {
         p.img.setAttribute('opacity', Math.sin(Math.PI * u).toFixed(3));
       }
 
-      /* 花环叶：慢速开合呼吸 + 点击后的一次阻尼回弹。 */
+      /* 花环叶：慢速开合呼吸 + 点击后的一次阻尼回弹。降低动效时只留回弹。 */
       const kick = dampedImpulse(v.kick, LEAF_KICK.amp, LEAF_KICK.decay, LEAF_KICK.omega);
       for (const [cfg, el] of blooms) {
-        const breathe = Math.sin((t / LEAF_BREATH.period + cfg.phase) * Math.PI * 2) * LEAF_BREATH.amp;
+        const breathe = reduced ? 0 : Math.sin((t / LEAF_BREATH.period + cfg.phase) * Math.PI * 2) * LEAF_BREATH.amp;
         el.setAttribute('transform', spin(cfg.pivot, cfg.dir * (breathe + kick)));
       }
     },

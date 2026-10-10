@@ -184,8 +184,8 @@ const polar = (r, deg) => {
 /* 视口留白比例：给底部的切换条留点位置。 */
 const FIT = 0.95;
 
-/* 当前页索引。 */
-let page = 0;
+/* 当前页索引；`-1` = 还没摆过。 */
+let page = -1;
 
 /* 懒挂载：只注入当前页与左右相邻页的角色，其余留到切过去再注入。
    首次进入（当前页自己）给入场，之后一律直接给终态。 */
@@ -204,8 +204,11 @@ function ensurePage(i) {
 
 /* 把当前页的角色摆进视口：整页等比放大到尽量占满，焦点角色落在正中。 */
 function show(i) {
-  page = (i + PAGES.length) % PAGES.length;
+  const next = (i + PAGES.length) % PAGES.length;
+  const swap = next !== page;
+  page = next;
   ensurePage(page);
+
   const { label, chars } = PAGES[page];
   const vw = hero.clientWidth;
   const vh = hero.clientHeight;
@@ -230,13 +233,18 @@ function show(i) {
 
   for (const [name, el] of stageEls) {
     const on = chars.includes(name);
+    if (on) {
+      const g = GEO.get(name);
+      const [cx, cy] = anchors.get(name);
+      el.style.setProperty('--w', `${(g.stageW * k).toFixed(2)}px`);
+      el.style.setProperty('--x', `${(vw / 2 + cx * k).toFixed(2)}px`);
+      el.style.setProperty('--y', `${(vh / 2 + cy * k).toFixed(2)}px`);
+    }
     el.classList.toggle('is-off', !on);
+    el.classList.remove('is-on');
     if (!on) continue;
-    const g = GEO.get(name);
-    const [cx, cy] = anchors.get(name);
-    el.style.setProperty('--w', `${(g.stageW * k).toFixed(2)}px`);
-    el.style.setProperty('--x', `${(vw / 2 + cx * k).toFixed(2)}px`);
-    el.style.setProperty('--y', `${(vh / 2 + cy * k).toFixed(2)}px`);
+    if (swap) void el.offsetWidth;   // 落定起点，让 transition 跑
+    el.classList.add('is-on');
   }
 
   /* 只跑当前页角色的逐帧，其余整条停掉。 */
@@ -245,7 +253,12 @@ function show(i) {
     else instance.pause();
   }
 
-  nameEl.textContent = label;
+  if (swap) {
+    nameEl.style.opacity = '0';
+    void nameEl.offsetWidth;
+    nameEl.textContent = label;
+    nameEl.style.opacity = '';
+  }
 }
 
 for (const btn of document.querySelectorAll('.viewer-btn')) {
