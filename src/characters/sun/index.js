@@ -16,7 +16,7 @@ import {
 import { defineCharacter } from '../../core/character.js';
 import { setupPose } from '../../core/apply.js';
 
-function setupSun(root) {
+function setupSun(root, { reduced = false } = {}) {
   const base = setupPose({ name: 'sun', bodyC: BODY_C, eyes: true })(root);
 
   const haloBack = root.querySelector('#sunHaloBack');
@@ -64,6 +64,10 @@ function setupSun(root) {
       base.apply(v, iv);
       const t = v.t;
 
+      /* 自走的循环动画的总幅度：`prefers-reduced-motion: reduce` 时为 0。
+         交互反馈（悬停 / 按压 / 回弹 / 点击表情 / 水滴）不乘它。 */
+      const amb = reduced ? 0 : 1;
+
       /* 点击表情：按住淡入，同时把三态眼压下去。 */
       clickFace.setAttribute('opacity', f3(v.clickW));
       eyes.setAttribute('opacity', f3(1 - v.clickW));
@@ -73,18 +77,18 @@ function setupSun(root) {
 
       /* 光环：呼吸 + 摆动（都绕环心），按住时收紧、抬起时随回弹冲激弹一下。
          上下在环坐标系外，屏幕上直上直下。 */
-      const hb = 1 + Math.sin((t / HALO_BREATH.dur) * Math.PI * 2) * HALO_BREATH.amp;
+      const hb = 1 + Math.sin((t / HALO_BREATH.dur) * Math.PI * 2) * HALO_BREATH.amp * amb;
       const ha = (t / HALO_SWAY.dur) * Math.PI * 2;
       const hp = (1 - HALO_PRESS.tight * v.pressW) * (1 + v.kick * HALO_PRESS.kick);
-      const halo = `translate(0 ${(Math.cos(ha) * HALO_SWAY.lift).toFixed(3)}) ${HALO_T} `
+      const halo = `translate(0 ${(Math.cos(ha) * HALO_SWAY.lift * amb).toFixed(3)}) ${HALO_T} `
         + `scale(${(hb * hp).toFixed(5)}) `
-        + `rotate(${(Math.sin(ha) * HALO_SWAY.rock).toFixed(3)})`;
+        + `rotate(${(Math.sin(ha) * HALO_SWAY.rock * amb).toFixed(3)})`;
       haloBack.setAttribute('transform', halo);
       haloFront.setAttribute('transform', halo);
 
       /* 星呼吸：亮度 / 大小 / 上下同相，缩放绕自己的中心，上下在环坐标系里直上直下。
          光晕层只跟上下，不跟着缩放（它是模糊光斑）。星不跟环的摆动走。 */
-      const pu = 0.5 - 0.5 * Math.cos((t / STAR_PULSE.dur) * Math.PI * 2);
+      const pu = reduced ? 0.5 : 0.5 - 0.5 * Math.cos((t / STAR_PULSE.dur) * Math.PI * 2);
       const starT = `translate(0 ${(-(2 * pu - 1) * STAR_PULSE.bob).toFixed(3)}) ${HALO_T}`;
       star.setAttribute('transform',
         `${starT} translate(${STAR_ORIGIN.x.toFixed(3)} ${STAR_ORIGIN.y.toFixed(3)}) `
@@ -115,9 +119,11 @@ function setupSun(root) {
       }
 
       /* 星点：一个寿命内淡入、最亮、淡出到 0；位移沿径向迸出，先快后慢。
-         `duty` 之外的静默段完全不显示，两端透明度都是 0。 */
+         `duty` 之外的静默段完全不显示，两端透明度都是 0。
+         降低动效时时间取 0，星点停在各自的初始相位。 */
+      const pt = reduced ? 0 : t;
       for (const p of pts) {
-        const v = (t / p.cycle + p.phase) % 1;
+        const v = (pt / p.cycle + p.phase) % 1;
         const on = v < FX_PARTICLE.duty;
         const u = on ? v / FX_PARTICLE.duty : 0;
         const r = FX_DRIFT_PX * (1 - Math.pow(1 - u, 3));
