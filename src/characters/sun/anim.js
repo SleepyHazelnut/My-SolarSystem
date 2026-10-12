@@ -10,6 +10,7 @@
  * 两层共用同一份 `CANVAS_T`。
  */
 import { createPose, PRESS } from '../../core/pose.js';
+import { createBlend } from '../../core/transition.js';
 import { approach } from '../../shared/approach.js';
 
 /* 固定种子的伪随机：逐帧要复现，不能用 Math.random。 */
@@ -172,8 +173,9 @@ export const CLICK_FACE = { inRate: 24, outRate: 9, minShow: 0.55, hold: 0.25 };
    `burst` 超出 1 即表示没在播。 */
 export function createSunAnim(opts) {
   const pose = createPose({ ...opts, breath: BREATH, blink: true });
+  /* 光环的按压权重：与本体共用 `PRESS` 的过渡时长与曲线。 */
+  const haloPress = createBlend(PRESS);
   let down = false;
-  let pressW = 0;
   let burstT = Infinity;
   let clickW = 0;
   let clickOn = false;
@@ -181,7 +183,7 @@ export function createSunAnim(opts) {
   let offT = 0;
   return {
     step(dt) {
-      pressW = approach(pressW, down ? 1 : 0, PRESS.rate, dt);
+      haloPress.step(dt);
       burstT += dt;
       if (clickOn) {
         showT += dt;
@@ -189,13 +191,14 @@ export function createSunAnim(opts) {
         if (showT >= CLICK_FACE.minShow && offT >= CLICK_FACE.hold) clickOn = false;
       }
       clickW = approach(clickW, clickOn ? 1 : 0, clickOn ? CLICK_FACE.inRate : CLICK_FACE.outRate, dt);
-      return { ...pose.step(dt), pressW, burst: burstT / DROP_BURST.dur, clickW };
+      return { ...pose.step(dt), pressW: haloPress.value, burst: burstT / DROP_BURST.dur, clickW };
     },
     setHover: (v) => pose.setHover(v),
     setDown(v) {
       if (down && !v) burstT = 0;
       if (v && !down) { clickOn = true; showT = 0; offT = 0; }
       down = v;
+      haloPress.set(v ? 1 : 0);
       pose.setDown(v);
     },
     blinkNow: () => pose.blinkNow(),
