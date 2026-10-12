@@ -1,5 +1,5 @@
 /**
- * 通用角色挂载器：注入 SVG、入场进度、指针输入、逐帧时钟、首帧、pause / resume、时间缩放、destroy、探针出口。
+ * 通用角色挂载器：注入 SVG、入场进度、指针输入、逐帧时钟、首帧、pause / resume、时间缩放、呼吸权重、destroy、探针出口。
  *
  * 角色提供三样：
  *   scene        SVG 模板串
@@ -89,7 +89,8 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
         ac.abort();
         root.innerHTML = '';
       },
-      /* 探针接口：动画实例上写了 `blinkNow` 就转发，与指针回调同一套约定。 */
+      /* 动画实例上写了哪个就转发哪个，与指针回调同一套约定。 */
+      ...(anim.setBreathWeight ? { setBreathWeight: (v) => anim.setBreathWeight(v) } : {}),
       ...(anim.blinkNow ? { blinkNow: () => anim.blinkNow() } : {}),
     };
 

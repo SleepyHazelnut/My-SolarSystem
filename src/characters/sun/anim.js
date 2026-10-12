@@ -10,8 +10,7 @@
  * 两层共用同一份 `CANVAS_T`。
  */
 import { createPose, PRESS } from '../../core/pose.js';
-import { createBlend } from '../../core/transition.js';
-import { approach } from '../../shared/approach.js';
+import { createBlend, EASE_OUT } from '../../core/transition.js';
 
 /* 固定种子的伪随机：逐帧要复现，不能用 Math.random。 */
 export function mulberry32(a) {
@@ -61,7 +60,7 @@ export const HALO_C = { x: 764, y: 882 };
 export const HALO = { dx: -35.1, dy: -490.6, s: 0.383, rot: -4.0 };
 
 /* 星在环坐标系里的下沉量（素材 px）：环后 / 星 / 环前 共用 HALO 的摆放，
-   星的下沉只写在自己的图变换里，所以三层的相对位置随手一调就变。 */
+   星的下沉只写在自己的图变换里，三层的相对位置随手一调就变。 */
 export const STAR_SINK = 0;
 
 /* 星的视觉中心（素材画布坐标）。星呼吸绕它缩放，水滴迸溅以它为原点。 */
@@ -164,44 +163,51 @@ export const FX_DRIFT_PX = FX_PARTICLE.drift / (K * FX.s);
 /* 星点爆发：按下时整层向外散开的比例，松手收回。 */
 export const FX_BURST = { grow: 0.14 };
 
-/* 点击表情：按下即显示；至少显示 `minShow` 秒（从按下算），松手后最多再停 `hold` 秒。 */
-export const CLICK_FACE = { inRate: 24, outRate: 9, minShow: 0.55, hold: 0.25 };
+/* 点击表情：按下即显示；至少显示 `minShow` 秒（从按下算），松手后最多再停 `hold` 秒。
+   `in` / `out` 是淡入与淡出的过渡口径，快进慢出。 */
+export const CLICK_FACE = {
+  in: { dur: 0.26, ease: EASE_OUT },
+  out: { dur: 0.68, ease: EASE_OUT },
+  minShow: 0.55,
+  hold: 0.25,
+};
 
 /* 悬停 / 按压 / 回弹 / 入场 / 眨眼：十颗一致，缺省值见 `core/pose.js` 与 `shared/blink.js`。 */
 
-/* 在姿态上补「按压权重」（特效爆发用）与「迸溅进度」（抬起触发一次），其余转发给 `core/pose.js`。
+/* 在姿态上补「按压权重」（特效爆发用）与「迸溅进度」（抬起触发一次）。
    `burst` 超出 1 即表示没在播。 */
 export function createSunAnim(opts) {
   const pose = createPose({ ...opts, breath: BREATH, blink: true });
   /* 光环的按压权重：与本体共用 `PRESS` 的过渡时长与曲线。 */
   const haloPress = createBlend(PRESS);
+  const clickW = createBlend(CLICK_FACE.in);
   let down = false;
   let burstT = Infinity;
-  let clickW = 0;
   let clickOn = false;
   let showT = 0;
   let offT = 0;
   return {
+    ...pose,
     step(dt) {
       haloPress.step(dt);
+      clickW.step(dt);
       burstT += dt;
       if (clickOn) {
         showT += dt;
         if (!down) offT += dt;
-        if (showT >= CLICK_FACE.minShow && offT >= CLICK_FACE.hold) clickOn = false;
+        if (showT >= CLICK_FACE.minShow && offT >= CLICK_FACE.hold) {
+          clickOn = false;
+          clickW.set(0, CLICK_FACE.out);
+        }
       }
-      clickW = approach(clickW, clickOn ? 1 : 0, clickOn ? CLICK_FACE.inRate : CLICK_FACE.outRate, dt);
-      return { ...pose.step(dt), pressW: haloPress.value, burst: burstT / DROP_BURST.dur, clickW };
+      return { ...pose.step(dt), pressW: haloPress.value, burst: burstT / DROP_BURST.dur, clickW: clickW.value };
     },
-    setHover: (v) => pose.setHover(v),
     setDown(v) {
       if (down && !v) burstT = 0;
-      if (v && !down) { clickOn = true; showT = 0; offT = 0; }
+      if (v && !down) { clickOn = true; showT = 0; offT = 0; clickW.set(1, CLICK_FACE.in); }
       down = v;
       haloPress.set(v ? 1 : 0);
       pose.setDown(v);
     },
-    blinkNow: () => pose.blinkNow(),
-    blinkValue: () => pose.blinkValue(),
   };
 }

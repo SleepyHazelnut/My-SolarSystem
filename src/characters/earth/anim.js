@@ -90,17 +90,15 @@ export function createEarthAnim(opts) {
   /* 点击冲激的计时（秒）。初值取大数，让衰减项归零。 */
   let kick = 1e9;
   return {
+    ...pose,
     step(dt) {
       kick += dt;
       return { ...pose.step(dt), kick };
     },
-    setHover: (v) => pose.setHover(v),
     setDown(v) {
       if (v && !down) kick = 0;
       down = v;
       pose.setDown(v);
     },
-    blinkNow: () => pose.blinkNow(),
-    blinkValue: () => pose.blinkValue(),
   };
 }
