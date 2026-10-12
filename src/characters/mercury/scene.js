@@ -1,11 +1,11 @@
 /**
  * SVG 场景：水星角色的图层结构（唯一一份）。
  *
- * 1) 绘制顺序与 DOM 顺序一致，后声明者在上。自下而上：本体（含烘死的陨石坑 / 嘴 / 腮红）
- *    → 三态眼。本体与眼睛不拆前后层：`#mercuryEyes` 是 `#mercuryBodyWrap` 的子节点。
+ * 1) 绘制顺序与 DOM 顺序一致，后声明者在上。自下而上：装饰·后 → 本体（含烘死的陨石坑 / 五官）
+ *    → 装饰·前。三个都是 `#mercuryBodyWrap` 的子节点。
  *
- * 2) 本体与三态眼都是 1536 画布，眼图是从本体上抠出来的（`_draft/_eyes.py`），
- *    内容已在画布上的正确位置，两层共用同一份 `CANVAS_T`（定义在 anim.js），无需对位修正。
+ * 2) 本体与装饰都是 1536 画布，装饰的落点写在 anim.js 的 `DECO`，
+ *    三层共用同一份 `CANVAS_T`（定义在 anim.js），无需对位修正。
  *
  * 3) 每帧写 transform 的只有两个组：
  *      #mercury          入场缩放。局部原点即画布中心，`scale` 原地生效
@@ -18,34 +18,38 @@
  *
  * ⚠️ 下面整块是模板字符串：注释里不能出现反引号，也不能出现裸的 ${。改完必跑 `npm run build`。
  */
-import eye_closed from '../../assets/mercury/eye_closed.png';
-import eye_half from '../../assets/mercury/eye_half.png';
-import eye_open from '../../assets/mercury/eye_open.png';
+import deco_fan from '../../assets/mercury/deco_fan.png';
+import deco_sunglasses from '../../assets/mercury/deco_sunglasses.png';
 import mercury_base from '../../assets/mercury/mercury_base.png';
 
-import { BODY_C, CANVAS_T, ORIGIN, VIEW } from './anim.js';
+import { BODY_C, CANVAS_T, DECO, ORIGIN, VIEW } from './anim.js';
 
-const IMG = { eye_closed, eye_half, eye_open, mercury_base };
+const IMG = { deco_fan, deco_sunglasses, mercury_base };
+
+/* 装饰的附加变换：摆到画布坐标 (x, y)，再绕自身画布中心缩放 k、旋转 rot。 */
+const decoT = ({ x, y, k, rot }) =>
+  `translate(${x} ${y}) rotate(${rot}) scale(${k}) translate(-768 -768)`;
 
 export const SVG_SCENE = `
     <svg id="mercuryScene" viewBox="${VIEW.minX} ${VIEW.minY} ${VIEW.w} ${VIEW.h}" role="img"
-         aria-label="会呼吸、会随机眨眼、可悬停的水星角色">
+         aria-label="会呼吸、可悬停的水星角色">
 
       <g transform="translate(${ORIGIN.x} ${ORIGIN.y})">
         <g id="mercury">
 
           <g id="mercuryBodyWrap">
+            <g id="mercuryDecoBack" data-name="装饰·后" transform="${CANVAS_T}"></g>
+
             <image id="mercuryBody" data-name="本体" href="${IMG.mercury_base}" x="0" y="0" width="1536" height="1536"
                    transform="${CANVAS_T}" />
 
-            <!-- 三态眼：各一层，靠 opacity 交叉淡入，初始为「睁」。 -->
-            <g id="mercuryEyes" data-name="眼睛" transform="${CANVAS_T}">
-              <image id="mercuryEyeClosed" data-name="眼睛·闭" href="${IMG.eye_closed}" x="0" y="0" width="1536" height="1536"
-                     opacity="0" />
-              <image id="mercuryEyeHalf" data-name="眼睛·半闭" href="${IMG.eye_half}" x="0" y="0" width="1536" height="1536"
-                     opacity="0" />
-              <image id="mercuryEyeOpen" data-name="眼睛·睁" href="${IMG.eye_open}" x="0" y="0" width="1536" height="1536"
-                     opacity="1" />
+            <g id="mercuryDecoFront" data-name="装饰·前" transform="${CANVAS_T}">
+              <g id="mercuryDecoFan" data-name="装饰·风扇" transform="${decoT(DECO.fan)}">
+                <image href="${IMG.deco_fan}" x="0" y="0" width="1536" height="1536" />
+              </g>
+              <g id="mercuryDecoSunglasses" data-name="装饰·墨镜" transform="${decoT(DECO.sunglasses)}">
+                <image href="${IMG.deco_sunglasses}" x="0" y="0" width="1536" height="1536" />
+              </g>
             </g>
           </g>
 
