@@ -1,5 +1,5 @@
 /**
- * 通用角色挂载器：注入 SVG、入场进度、指针输入、逐帧时钟、首帧、pause / resume、destroy、探针出口。
+ * 通用角色挂载器：注入 SVG、入场进度、指针输入、逐帧时钟、首帧、pause / resume、时间缩放、destroy、探针出口。
  *
  * 角色提供三样：
  *   scene        SVG 模板串
@@ -45,10 +45,12 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
     let last = null;
     let lastIntro = introFx.current();
     let running = true;
+    /* 时间缩放：整条时间轴（含入场）都乘它。`1` = 常速。 */
+    let timeScale = 1;
 
     function tick(_time, deltaMs) {
       if (!running) return;
-      const dt = clampDt(deltaMs);
+      const dt = clampDt(deltaMs) * timeScale;
       introFx.step(dt);
       lastIntro = introFx.current();
       last = anim.step(dt);
@@ -79,6 +81,9 @@ export function defineCharacter({ scene, createAnim, setup, hit = '#hit', intro 
       /** 停掉逐帧（不在当前页的角色）。`resume()` 之前不再写 DOM。 */
       pause() { running = false; },
       resume() { running = true; },
+      /** 时间缩放：`0.5` 慢放、`2` 快放、负值倒放。入场与所有动作一起受影响。 */
+      setTimeScale(v) { timeScale = v; },
+      get timeScale() { return timeScale; },
       destroy() {
         gsap.ticker.remove(tick);
         ac.abort();
