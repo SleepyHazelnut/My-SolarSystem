@@ -137,14 +137,14 @@ export const SVG_SCENE = `
               </g>
             </g>
 
-            <!-- 特效：散落在四周的星点，逐颗淡入淡出并沿背离太阳的方向迸出；
-                 整层再按按压权重放大做爆发。整层套一层暖色柔光。
-                 特效.png 切出的 15 片 + 设定7 抠出的 5 颗装饰星，共 20 片。 -->
+            <!-- 特效：散落在四周的碎点与装饰星。碎点逐颗沿背离太阳的方向溅出，
+                 装饰星留在原地闪。整层再按按压权重放大做爆发，并套一层暖色柔光。
+                 特效.png 切出的 15 片碎点 + 设定7 抠出的 5 颗装饰星。 -->
             <g id="sunFx" data-name="特效" style="filter: drop-shadow(0 0 5px rgba(255, 203, 86, 0.9))">
               <g id="sunFxLayer" transform="${FX_T}">
                 <g transform="${FX_IMG_T}">
                 ${parts(fxImgs, FX_PTS, 'sunFxPt', '星点')}
-                ${parts(starImgs, FX_STARS, 'sunFxStar', '星点B')}
+                ${parts(starImgs, FX_STARS, 'sunFxStar', '星闪')}
                 </g>
               </g>
             </g>

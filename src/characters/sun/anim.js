@@ -37,7 +37,7 @@ const BALL_PX = 696;
 /** 局部原点（素材画布中心）在 viewBox 里的落点。 */
 export const ORIGIN = { x: 268.2, y: 263.0 };
 
-/* 太阳球心（素材画布坐标）。呼吸绕它缩放，星点以它为原点往外漂。 */
+/* 太阳球心（素材画布坐标）。呼吸绕它缩放，碎点以它为原点往外溅。 */
 export const BODY_PX = { x: 788, y: 732 };
 
 /* 呼吸缩放的支点 = 球心相对画布中心的偏移（局部单位）。 */
@@ -72,7 +72,7 @@ export const HALO_FX = { dx: -32.2, dy: -650.3, s: 0.383, rot: -4.0 };
 export const FX_C = { x: 760, y: 816 };
 export const FX = { dx: -35.1, dy: -4.4, s: 1.127, rot: 0.0 };
 
-/* 拆成单颗的水滴 / 星点，各一层的落位（素材画布上的 x y w h）。
+/* 拆成单颗的水滴 / 碎点，各一层的落位（素材画布上的 x y w h）。
    图在 src/assets/sun/halofx/ 与 fx/，由 `_draft/_split_fx.py` 切出来。 */
 export const HF_PTS = [
   [341, 565, 121, 119],
@@ -102,7 +102,7 @@ export const FX_PTS = [
 ];
 
 /* 设定7 抠出的 5 颗装饰星，各一张图（`src/assets/sun/star/`，与文件排序一一对应），
-   落位格式同 `FX_PTS`（素材画布上的 x y w h）。 */
+   落位格式同 `FX_PTS`（素材画布上的 x y w h）。留在原地闪，见 `FX_TWINKLE`。 */
 export const FX_STARS = [
   [330, 280, 43, 54],
   [627, 249, 40, 53],
@@ -152,15 +152,22 @@ export const STAR_PULSE = { dur: 2.6, min: 0.80, grow: 0.05, glow: 0.50, bob: 2.
    `grow` 是最亮时的额外放大，`push` 是沿径向外推的距离（倍于水滴到星的距离）。 */
 export const DROP_BURST = { dur: 0.42, rise: 0.05, hold: 0.08, sc: 0.55, grow: 0.5, push: 0.45 };
 
-/* 星点：各自固定相位与周期，一个寿命内「淡入 → 沿背离太阳的方向迸出 → 淡出」。
-   `dur` 是单颗的可见寿命（秒），`duty` 是可见时间占整个循环的比例 —— 余下的静默段
-   完全不显示，这样「灭掉」才看得出来。`drift` 是外移距离（局部单位），位移先快后慢。 */
-export const FX_PARTICLE = { dur: [2.4, 4.6], duty: 0.6, drift: 10, seed: 20261010 };
+/* 碎点（`FX_PTS` 那 15 片）：各自固定相位与周期，一个寿命内沿背离太阳的方向溅出。
+   `dur` 是单颗的可见寿命（秒），`duty` 是可见时间占整个循环的比例 —— 余下的静默段完全不显示。
+   `drift` 是外移距离（局部单位），`ease` 是位移的急停指数（越大前段越猛），
+   `rise` 是亮度爬满所占的比例，之后按 `fade` 次幂衰减。 */
+export const FX_SPECK = {
+  dur: [0.9, 1.6], duty: 0.6, drift: 22, ease: 4, rise: 0.12, fade: 1.4, seed: 20261010,
+};
 
-/* 星点写在 `FX_IMG_T` 组内（画布坐标），把局部单位换算成画布 px。 */
-export const FX_DRIFT_PX = FX_PARTICLE.drift / (K * FX.s);
+/* 装饰星（`FX_STARS` 那 5 片）：留在原地闪，只改 opacity，不位移不缩放。
+   `min` 是最暗时的 opacity，`dur` 是单颗的闪烁周期区间（秒）。 */
+export const FX_TWINKLE = { min: 0.25, dur: [0.9, 1.8], seed: 20261017 };
 
-/* 星点爆发：按下时整层向外散开的比例，松手收回。 */
+/* 碎点写在 `FX_IMG_T` 组内（画布坐标），把局部单位换算成画布 px。 */
+export const FX_DRIFT_PX = FX_SPECK.drift / (K * FX.s);
+
+/* 特效爆发：按下时整层向外散开的比例，松手收回。 */
 export const FX_BURST = { grow: 0.14 };
 
 /* 点击表情：按下即显示；至少显示 `minShow` 秒（从按下算），松手后最多再停 `hold` 秒。

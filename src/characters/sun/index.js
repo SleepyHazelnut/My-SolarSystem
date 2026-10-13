@@ -4,13 +4,13 @@
  *   scene.js  图层结构（静态）
  *   anim.js   动作参数与几何（姿态由 `core/pose.js` 给出）
  *   本文件    挂载入口：在通用的 `setupPose` 之外，再写本体光晕 / 光环呼吸与摆动 /
- *             星呼吸 / 水滴迸溅 / 星点粒子 / 按压爆发这几层太阳独有的动作
+ *             星呼吸 / 水滴迸溅 / 碎点飞溅 / 装饰星闪烁 / 按压爆发这几层太阳独有的动作
  *
  * 注入 SVG / 入场进度 / 指针输入 / 逐帧时钟 / 首帧 / destroy 都在 `core/character.js`。
  */
 import { SVG_SCENE } from './scene.js';
 import {
-  BODY_C, BODY_PX, createSunAnim, DROP_BURST, FX_BURST, FX_DRIFT_PX, FX_PARTICLE, GLOW,
+  BODY_C, BODY_PX, createSunAnim, DROP_BURST, FX_BURST, FX_DRIFT_PX, FX_SPECK, FX_TWINKLE, GLOW,
   HALO_BREATH, HALO_PRESS, HALO_SWAY, HALO_T, mulberry32, STAR_C, STAR_ORIGIN, STAR_PULSE,
 } from './anim.js';
 import { defineCharacter } from '../../core/character.js';
@@ -41,21 +41,33 @@ function setupSun(root, { reduced = false } = {}) {
   const RISE = DROP_BURST.rise / DROP_BURST.dur;
   const HOLD = (DROP_BURST.rise + DROP_BURST.hold) / DROP_BURST.dur;
 
-  /* 星点：预存各自背离太阳的单位向量。固定种子，逐帧可复现。 */
-  const rnd = mulberry32(FX_PARTICLE.seed);
-  const pts = [...root.querySelectorAll('[data-name^="星点"]')].map((el) => {
+  /* 碎点：预存各自背离太阳的单位向量。固定种子，逐帧可复现。 */
+  const rnd = mulberry32(FX_SPECK.seed);
+  const specks = [...root.querySelectorAll('[data-name^="星点"]')].map((el) => {
     const x = +el.getAttribute('x'), y = +el.getAttribute('y');
     const w = +el.getAttribute('width'), h = +el.getAttribute('height');
     const ux = x + w / 2 - BODY_PX.x, uy = y + h / 2 - BODY_PX.y;
     const len = Math.hypot(ux, uy) || 1;
-    const dur = FX_PARTICLE.dur[0] + rnd() * (FX_PARTICLE.dur[1] - FX_PARTICLE.dur[0]);
+    const dur = FX_SPECK.dur[0] + rnd() * (FX_SPECK.dur[1] - FX_SPECK.dur[0]);
     return {
       el, ux: ux / len, uy: uy / len,
       phase: rnd(),
-      dur,
-      cycle: dur / FX_PARTICLE.duty,
+      cycle: dur / FX_SPECK.duty,
     };
   });
+
+  /* 装饰星：只打散相位与周期，位置不动。 */
+  const rndStar = mulberry32(FX_TWINKLE.seed);
+  const stars = [...root.querySelectorAll('[data-name^="星闪"]')].map((el) => ({
+    el,
+    phase: rndStar(),
+    dur: FX_TWINKLE.dur[0] + rndStar() * (FX_TWINKLE.dur[1] - FX_TWINKLE.dur[0]),
+  }));
+
+  /* 碎点的亮度：`rise` 之前爬满，之后一路衰减。 */
+  const flash = (u) => (u < FX_SPECK.rise
+    ? u / FX_SPECK.rise
+    : Math.pow(1 - (u - FX_SPECK.rise) / (1 - FX_SPECK.rise), FX_SPECK.fade));
 
   const f3 = (v) => v.toFixed(3);
 
@@ -118,18 +130,25 @@ function setupSun(root, { reduced = false } = {}) {
           + `translate(${d.cx} ${d.cy}) scale(${bs}) translate(${-d.cx} ${-d.cy})`);
       }
 
-      /* 星点：一个寿命内淡入、最亮、淡出到 0；位移沿径向迸出，先快后慢。
-         `duty` 之外的静默段完全不显示，两端透明度都是 0。
-         降低动效时时间取 0，星点停在各自的初始相位。 */
-      const pt = reduced ? 0 : t;
-      for (const p of pts) {
-        const v = (pt / p.cycle + p.phase) % 1;
-        const on = v < FX_PARTICLE.duty;
-        const u = on ? v / FX_PARTICLE.duty : 0;
-        const r = FX_DRIFT_PX * (1 - Math.pow(1 - u, 3));
-        p.el.setAttribute('opacity', on ? f3(Math.sin(Math.PI * u)) : '0');
+      /* 碎点：一个寿命内亮起、沿径向溅出、衰减到 0。`duty` 之外的静默段完全不显示。
+         降低动效时时间取 0，碎点停在各自的初始相位。 */
+      const ft = reduced ? 0 : t;
+      for (const p of specks) {
+        const ph = (ft / p.cycle + p.phase) % 1;
+        const on = ph < FX_SPECK.duty;
+        const u = on ? ph / FX_SPECK.duty : 0;
+        const r = FX_DRIFT_PX * (1 - Math.pow(1 - u, FX_SPECK.ease));
+        p.el.setAttribute('opacity', on ? f3(flash(u)) : '0');
         p.el.setAttribute('transform',
           `translate(${(p.ux * r).toFixed(2)} ${(p.uy * r).toFixed(2)})`);
+      }
+
+      /* 装饰星：各自周期与相位，只改 opacity。降低动效时常亮。 */
+      for (const s of stars) {
+        if (reduced) { s.el.setAttribute('opacity', '1'); continue; }
+        const ph = (t / s.dur + s.phase) % 1;
+        const u = 0.5 - 0.5 * Math.cos(ph * Math.PI * 2);
+        s.el.setAttribute('opacity', f3(FX_TWINKLE.min + (1 - FX_TWINKLE.min) * u));
       }
 
       /* 爆发：按住时整层从太阳中心往外散开，松手收回。 */
