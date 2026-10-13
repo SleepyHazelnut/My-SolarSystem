@@ -27,7 +27,7 @@ export const PRESS = { amp: 0.065, wide: 0.75, sink: 3.0, dur: 0.16, ease: EASE_
 /** 松手回弹：一次冲激 + 指数衰减（`shared/impulse.js`）。`amp` 即最大形变比例。 */
 export const KICK = { amp: 0.10, decay: 7.0, omega: 19, dur: 1.0 };
 
-/** 回弹层的权重过渡：按下时把正在跑的回弹快速淡出，而不是瞬间截断。 */
+/** 回弹层的权重过渡。 */
 const KICK_BLEND = { dur: 0.08, ease: EASE_OUT };
 
 /** 呼吸层的权重过渡。 */
@@ -64,7 +64,7 @@ export function createPose({
   const pressW = createBlend(pressParams);
   const kickW = createBlend(KICK_BLEND);
   const breathW = createBlend(BREATH_BLEND);
-  /* 首帧即满量：悬停 / 按压从 0 起（本来就没悬停），回弹与呼吸从 1 起。 */
+  /* 首帧即满量：悬停 / 按压从 0 起，回弹与呼吸从 1 起。 */
   kickW.jump(1);
   breathW.jump(1);
 
@@ -82,7 +82,7 @@ export function createPose({
     blinkLayer?.step(dt, true);
 
     /* 松手回弹：`dampedImpulse` 的幅值固定取 1，幅度交给 `spring()` 的 `amp`。
-       按下时不中断冲激，只把它的权重淡出（见 `setDown`），所以这里照常推进。 */
+       按下不中断冲激，只淡出它的权重（见 `setDown`）。 */
     let kickU = 0;
     if (kickT !== Infinity) {
       kickU = dampedImpulse(kickT, 1, kickParams.decay, kickParams.omega);

@@ -7,7 +7,7 @@
  *
  * 注入 SVG / 入场进度 / 指针输入 / 逐帧时钟 / 首帧 / destroy 都在 `core/character.js`。
  *
- * 土星不眨眼，所以 `setupPose` 不传 `eyes`；三层光环都挂在 `#saturnBodyWrap` 内一起缩。
+ * 土星不眨眼，`setupPose` 不传 `eyes`；三层光环都挂在 `#saturnBodyWrap` 内一起缩。
  */
 import { SVG_SCENE } from './scene.js';
 import { BODY_C, createSaturnAnim } from './anim.js';

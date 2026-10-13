@@ -1,5 +1,5 @@
 /**
- * 缓动原语。只放**算法** —— 曲线参数是各角色自己的美术口径，见 `sun/anim.js` 的 `EASE`。
+ * 缓动原语。只放**算法** —— 曲线参数是各调用方的美术口径，见 `core/transition.js` 与 `shared/blink.js`。
  */
 
 /**
@@ -31,7 +31,7 @@ export function cubicBezier(x1, y1, x2, y2) {
   };
 }
 
-/** 回弹 ease-out-back（Penner，c1 = 1.70158）：末段冲过 1 再落回，峰值约 1.10。入场用它。 */
+/** 回弹 ease-out-back（Penner，c1 = 1.70158）：末段冲过 1 再落回，峰值 1.1000。入场用它。 */
 export function easeOutBack(u) {
   if (u <= 0) return 0;
   if (u >= 1) return 1;

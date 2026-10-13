@@ -3,7 +3,7 @@
  * 这里只提供进度器。
  *
  * 缩放的作用点由角色在 `apply` 里决定：局部原点即角色中心的组可直接写 `scale(k)`，
- * 否则要自己补 `translate(C) … translate(-C)` 把支点搬回中心。
+ * 支点不在中心的要自己补 `translate(C) … translate(-C)` 搬回去。
  *
  * 曲线用 `easing.js` 的 `easeOutBack`。
  */

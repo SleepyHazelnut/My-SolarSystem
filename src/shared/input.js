@@ -3,7 +3,7 @@
  *
  * ① `up` 挂 window，不挂命中区。
  * ② `leave` 是否连带清掉按下态由调用方决定，这里只回调。
- * ③ 触屏的 `pointerenter` 不算悬停，直接跳过（否则点一下会留下 hover 态）。
+ * ③ 触屏的 `pointerenter` 不算悬停，直接跳过。
  *
  * 监听统一挂传入的 `AbortController`；`onCancel` / `onBlur` 不传就不注册。
  */

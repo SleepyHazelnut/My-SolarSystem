@@ -83,7 +83,7 @@ export function createBlinkLayer(options = {}) {
  * 把闭眼量 b(0~1) 拆成「睁 / 半闭 / 闭」三段不透明度。
  *
  * 相邻两段权重**和恒为 1** —— 三张眼图叠着画时总遮盖不变，交叉淡入不会闪。
- * 放这里而不是各角色里：眼图与闭眼深度是共用口径，各角色必须一致。
+ * 放这里：眼图与闭眼深度是各角色共用的口径，必须一致。
  */
 export function eyeWeights(b) {
   return [

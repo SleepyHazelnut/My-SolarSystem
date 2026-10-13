@@ -52,7 +52,7 @@ export function layer(patch, w) {
 }
 
 /** 叠加：缩放相乘（两次缩放叠起来），位移与旋转相加。
- *  未提供的键取中性值，所以只传一个 `hover()` 也能直接当完整姿态用。 */
+ *  未提供的键取中性值，只传一个 `hover()` 也能直接当完整姿态用。 */
 export function compose(...patches) {
   const out = { sx: 1, sy: 1, dx: 0, dy: 0, rot: 0 };
   for (const p of patches) {

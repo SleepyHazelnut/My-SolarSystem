@@ -7,7 +7,7 @@
  *
  * 注入 SVG / 入场进度 / 指针输入 / 逐帧时钟 / 首帧 / destroy 都在 `core/character.js`。
  *
- * 月球不眨眼，所以 `setupPose` 不传 `eyes`。
+ * 月球不眨眼，`setupPose` 不传 `eyes`。
  */
 import { SVG_SCENE } from './scene.js';
 import { BODY_C, createMoonAnim } from './anim.js';
