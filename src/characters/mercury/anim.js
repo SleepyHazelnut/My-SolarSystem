@@ -40,7 +40,40 @@ export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
 export const DECO = {
   fan: { x: 329.1, y: 1071.8, k: 0.302, rot: 0, layer: 'front' },
   sunglasses: { x: 803.2, y: 422.2, k: 0.573, rot: 9, layer: 'front' },
+  wind: { x: 548, y: 999, k: 0.302, rot: 0, layer: 'front' },
 };
+
+/* ---------- 出风与风扇 ---------- */
+
+/* 风纹：从扇口往外吹，一轮内淡入、沿 `ang` 方向外移、按 `fade` 次幂衰减。
+   `dur` 一轮时长（秒），`duty` 可见段占一轮的比例，`dist` 外移距离（局部单位），
+   `ang` 外移方向（度，0 = 向右，正 = 向上），`rise` 亮度爬满所占比例，
+   `freeze` 是降低动效时停住的相位。 */
+export const WIND = { dur: 2.4, duty: 0.72, dist: 22, ang: 20, rise: 0.20, fade: 1.3, freeze: 0.32 };
+
+/* 风纹写在画布坐标里，把局部单位换算成画布 px。 */
+export const WIND_DIST_PX = WIND.dist / K;
+
+/* 风扇摆动的支点 = 底座在画布坐标里的落点。 */
+export const FAN_PIVOT = { x: 334.2, y: 1224.9 };
+
+/* 墨镜抖动的支点 = 墨镜在画布坐标里的落点。 */
+export const GLASSES_PIVOT = { x: DECO.sunglasses.x, y: DECO.sunglasses.y };
+
+/* 墨镜的点击抖动：抬起时上下抖两下（`dy` 单位是局部单位），同时带一点摆动（`rot` 单位是度）。 */
+export const GLASSES_SHAKE = { dy: 6, rot: 2.2, decay: 5.5, omega: 22 };
+
+/* 同上，换算成画布 px。 */
+export const GLASSES_SHAKE_PX = GLASSES_SHAKE.dy / K;
+
+/* 风扇的点击摆动：抬起时绕底座的一次阻尼冲激（幅度单位是度）。 */
+export const FAN_KICK = { amp: 4.5, decay: 6.5, omega: 18 };
+
+/* 点击时额外补的一股风：`grow` 是额外外移（局部单位），`boost` 是亮度加成。 */
+export const WIND_PUFF = { grow: 12, boost: 0.55, decay: 6, omega: 7 };
+
+/* 同上，换算成画布 px。 */
+export const WIND_PUFF_PX = WIND_PUFF.grow / K;
 
 /* ---------- 动作参数 ---------- */
 
@@ -50,5 +83,20 @@ const BREATH = { dur: 3.9, amp: 0.014, lift: 3.2, wide: 0.46, phase: 2.4 };
 /* 悬停 / 按压 / 回弹 / 入场：十颗一致，缺省值见 `core/pose.js` 与 `shared/intro.js`。 */
 
 export function createMercuryAnim(opts) {
-  return createPose({ ...opts, breath: BREATH });
+  const pose = createPose({ ...opts, breath: BREATH });
+  let down = false;
+  /* 点击冲激的计时（秒）。初值取大数，让衰减项归零。 */
+  let kick = 1e9;
+  return {
+    ...pose,
+    step(dt) {
+      kick += dt;
+      return { ...pose.step(dt), kick };
+    },
+    setDown(v) {
+      if (v && !down) kick = 0;
+      down = v;
+      pose.setDown(v);
+    },
+  };
 }

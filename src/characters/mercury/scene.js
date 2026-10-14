@@ -7,9 +7,13 @@
  * 2) 本体与装饰都是 1536 画布，装饰的落点写在 anim.js 的 `DECO`，
  *    三层共用同一份 `CANVAS_T`（定义在 anim.js），无需对位修正。
  *
- * 3) 每帧写 transform 的只有两个组：
+ * 3) 每帧写 transform 的有五个组：
  *      #mercury          入场缩放。局部原点即画布中心，`scale` 原地生效
  *      #mercuryBodyWrap  呼吸 + 悬停 + 按压，绕球心缩放与上浮
+ *      #mercuryWindRig   出风的外移与淡出
+ *      #mercuryFanRig    风扇的点击摆动，绕底座转
+ *      #mercurySunglassesRig  墨镜的点击抖动
+ *    后三个在 `#mercuryDecoFront` 里，坐标是素材画布坐标。
  *
  * 4) 命中区 <circle> 放在 #mercury 之外，不随悬停移动，避免贴边 hover 抖动。
  *    圆心对准球心（非素材画布中心），半径 149 略大于球体半径 ≈146。
@@ -20,11 +24,12 @@
  */
 import deco_fan from '../../assets/mercury/deco_fan.png';
 import deco_sunglasses from '../../assets/mercury/deco_sunglasses.png';
+import deco_wind from '../../assets/mercury/deco_wind.png';
 import mercury_base from '../../assets/mercury/mercury_base.png';
 
 import { BODY_C, CANVAS_T, DECO, ORIGIN, VIEW } from './anim.js';
 
-const IMG = { deco_fan, deco_sunglasses, mercury_base };
+const IMG = { deco_fan, deco_sunglasses, deco_wind, mercury_base };
 
 /* 装饰的附加变换：摆到画布坐标 (x, y)，再绕自身画布中心缩放 k、旋转 rot。 */
 const decoT = ({ x, y, k, rot }) =>
@@ -44,11 +49,20 @@ export const SVG_SCENE = `
                    transform="${CANVAS_T}" />
 
             <g id="mercuryDecoFront" data-name="装饰·前" transform="${CANVAS_T}">
-              <g id="mercuryDecoFan" data-name="装饰·风扇" transform="${decoT(DECO.fan)}">
-                <image href="${IMG.deco_fan}" x="0" y="0" width="1536" height="1536" />
+              <g id="mercuryWindRig">
+                <g id="mercuryDecoWind" data-name="装饰·风" transform="${decoT(DECO.wind)}">
+                  <image href="${IMG.deco_wind}" x="0" y="0" width="1536" height="1536" />
+                </g>
               </g>
-              <g id="mercuryDecoSunglasses" data-name="装饰·墨镜" transform="${decoT(DECO.sunglasses)}">
-                <image href="${IMG.deco_sunglasses}" x="0" y="0" width="1536" height="1536" />
+              <g id="mercuryFanRig">
+                <g id="mercuryDecoFan" data-name="装饰·风扇" transform="${decoT(DECO.fan)}">
+                  <image href="${IMG.deco_fan}" x="0" y="0" width="1536" height="1536" />
+                </g>
+              </g>
+              <g id="mercurySunglassesRig">
+                <g id="mercuryDecoSunglasses" data-name="装饰·墨镜" transform="${decoT(DECO.sunglasses)}">
+                  <image href="${IMG.deco_sunglasses}" x="0" y="0" width="1536" height="1536" />
+                </g>
               </g>
             </g>
           </g>
