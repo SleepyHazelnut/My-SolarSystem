@@ -40,7 +40,7 @@ export const CANVAS_T = `scale(${K}) translate(-${CANVAS_C} -${CANVAS_C})`;
 export const DECO = {
   fan: { x: 329.1, y: 1071.8, k: 0.302, rot: 0, layer: 'front' },
   sunglasses: { x: 803.2, y: 422.2, k: 0.573, rot: 9, layer: 'front' },
-  wind: { x: 548, y: 999, k: 0.302, rot: 0, layer: 'front' },
+  wind: { x: 491.1, y: 1003.3, k: 0.2, rot: 0, layer: 'front' },
 };
 
 /* ---------- 出风与风扇 ---------- */
@@ -49,7 +49,7 @@ export const DECO = {
    `dur` 一轮时长（秒），`duty` 可见段占一轮的比例，`dist` 外移距离（局部单位），
    `ang` 外移方向（度，0 = 向右，正 = 向上），`rise` 亮度爬满所占比例，
    `freeze` 是降低动效时停住的相位。 */
-export const WIND = { dur: 2.4, duty: 0.72, dist: 22, ang: 20, rise: 0.20, fade: 1.3, freeze: 0.32 };
+export const WIND = { dur: 2.4, duty: 0.72, dist: 14.6, ang: 20, rise: 0.2, fade: 1.3, freeze: 0.32 };
 
 /* 风纹写在画布坐标里，把局部单位换算成画布 px。 */
 export const WIND_DIST_PX = WIND.dist / K;
@@ -70,7 +70,7 @@ export const GLASSES_SHAKE_PX = GLASSES_SHAKE.dy / K;
 export const FAN_KICK = { amp: 4.5, decay: 6.5, omega: 18 };
 
 /* 点击时额外补的一股风：`grow` 是额外外移（局部单位），`boost` 是亮度加成。 */
-export const WIND_PUFF = { grow: 12, boost: 0.55, decay: 6, omega: 7 };
+export const WIND_PUFF = { grow: 8, boost: 0.55, decay: 6, omega: 7 };
 
 /* 同上，换算成画布 px。 */
 export const WIND_PUFF_PX = WIND_PUFF.grow / K;
