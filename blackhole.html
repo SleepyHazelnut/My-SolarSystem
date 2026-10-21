@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>黑洞本体 × 吸积盘 · v8（按定标参数）</title>
+<title>黑洞本体 × 吸积盘 · v9（真实感：坠落/透镜/吸入物）</title>
 <style>
   html,body{margin:0;height:100%;background:#F7F6F9;color:#26232F;
     font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased;
@@ -31,6 +31,7 @@
   <div class="sep"></div>
   <button id="bLine">墨线</button>
   <button id="bOrbit">轨道</button>
+  <button id="bReal">真实模式</button>
   <span class="ro" id="ro"></span>
 </div>
 
@@ -50,16 +51,28 @@
 </script>
 <script>
 /* ===================================================================
-   v8：按用户在 mockup-body-v1.html 里定标的参数接入，构图一字未改。
+   v9：在 v8 用户定标参数之上叠加「真实感」层，构图与色板一字未改。
    倾角 -20° · 扁率 0.75 · 盘心 (1083,923) · 本体 r=370 @ (1083,913) · 压扁 0.92
-   （球压扁 0.92，五官反向缩放保持原比例、正对观众）
-   本版只修一个 bug：?steady / ?t≥2.15 直达稳态时，
-   入场 tween 的 from 态会把 gBodyIn 的 opacity 留在 0 → 本体整个消失。
    -------------------------------------------------------------------
-   f5m 模型 · 由 _draft/gen/frame.py 原样搬到 JS
-   N=140  S=0.52  T=1  width=1.05  lobe=0.90  dilate=5.5
-   并集墨线 = 「所有描边铺一层、所有填色再铺一层」——
-   等价于 feMorphology 膨胀取并集外轮廓，但不需要滤镜，可以逐帧动。
+   新增六项（全部平涂风格，不用 blur/gradient 滤镜）：
+   P0 光子环：球缘两道平涂亮环（#FEEB99 7px + #FCA346 3px），挂在
+      gBodyPos 里随本体定位/压扁，五官之下。
+   P1 引力透镜：远侧弧的「弯折像」——点质量透镜方程 θ± = (β±√(β²+4L²))/2
+      的风格化版。远侧弧压到紧贴视界的窄带（上半弧 gHalo，本体前、近盘后）；
+      内缘亮环的镜像副像绕到视界下缘（gHaloLow，最前层）。近侧光不弯。
+   P2 坠落：行程末段（内盘 ISCO=1.55 以内）切入 EASE_PLUNGE 纯 ease-in
+      俯冲——起步导数 0 与主曲线速度连续、末端导数 ∞；半径收敛到视界，
+      角速度按开普勒联动追加扫角，潮汐拉伸变长变细，压暗一档（引力红移），
+      屏幕距离进入光子环内侧即被「吞掉」（不再透明度溶掉）。
+      外盘弧收尾改为向内倾斜（kd 负偏 + 微拉伸），读作整体向内的物质流。
+   P3 吸入物：26 颗碎片沿对数螺旋坠入（盘面内、前后分景深）；每 15~25s
+      一次潮汐流事件（长带从外缘被拽入拉伸吞没）；静态星场一次性烘入
+      透镜位移——洞周净空 + 密度向爱因斯坦环堆积，零每帧成本。
+   P4 多普勒：亮度按 cos(φ−φ_approach) 调制（±18%，只动不透明度不动色板）。
+   P5 结构：整体公转 ROT（净角位移不再为零）；呼吸改径向（内强外弱）。
+      「真实模式」开关：藏五官只留光子环。
+   -------------------------------------------------------------------
+   f5m 模型 · N=78 S=0.98 width=1.05 lobe=0.90 色板/权重/驻留与 v8 完全一致
    =================================================================== */
 const CX = 1083, CY = 923, A = 338, SIG = 0.75, TILT = -20 * Math.PI / 180;
 const CT = Math.cos(TILT), ST = Math.sin(TILT);
@@ -87,6 +100,20 @@ const LOBE_AMP = 0;      /* f5m 没有外缘的瓣 */
 const STROKE = 3.5;        /* f5m 的细墨线：7px 在 168 条时糊成一片，6 刚好 */
 
 const CFG = { N: 78, S: 0.98, T: 1.0, width: 1.05, longfrac: 0.30, seed: 7, SPEED: 0.42 };
+
+/* ---------------- v9 真实感参数（全部绕开用户定标值） ---------------- */
+const BCX = 1083, BCY = 913;      /* 本体球心（定标） */
+const RING  = 372;                /* 光子环屏幕半径（600 本地 × 0.62114） */
+const K_END = 1.02;               /* 坠落终点（k 单位，1.02×338≈345px，视界内） */
+const ISCO  = 1.55;               /* 最内稳定轨道：以内俯冲坠落，以外收尾内倾 */
+const PLFRAC = 0.25;              /* 行程最后 25% 为坠落段 */
+const ROT = 0.03;                 /* v9-P5 整体公转（rad/s），整盘净角位移不再为零 */
+const DOP_PHI = Math.PI;          /* v9-P4 多普勒增亮方位：左缘逼近（盘顺时针 +φ） */
+const DOP_AMP = 0.14;
+const DARKB = BANDS.map(c => darken(c, 0.55));   /* 坠落段红移压暗一档 */
+/* 调试隔离开关：?noplunge 关坠落/内倾，?nohalo 关弯折像（定位渲染问题用） */
+const NOPL   = /noplunge/.test(location.search);
+const NOHALO = /nohalo/.test(location.search);
 
 /* ---------------- 随机 ---------------- */
 const rng = seed => { let s = seed >>> 0; return () => {
@@ -129,7 +156,7 @@ function pickBand(phi, norm) {
    会拉成一根根细长的逗号，f5m 那种胖梭形就没了。 */
 const profile = u => Math.pow(Math.sin(Math.PI * Math.pow(u, 0.85)), 0.45);
 
-function ribbonPath(k0, phi0, dphi, bw, n, sh) {
+function ribbonPath(k0, phi0, dphi, bw, n, sh, xf) {
   const kd = sh ? (sh.kd || 0) : 0;             // 沿弧的半径漂移：斜着切过去的带子
   const out = [], inn = [];
   for (let i = 0; i <= n; i++) {
@@ -144,11 +171,39 @@ function ribbonPath(k0, phi0, dphi, bw, n, sh) {
     out.push([p[0] + nx * hw, p[1] + ny * hw]);
     inn.push([p[0] - nx * hw, p[1] - ny * hw]);
   }
+  /* v9-P1：可选点变换 —— 对整条带子的外/内轮廓逐点做透镜映射。
+     带形在透镜下本来就该被扭曲/压缩，直接变换轮廓点是对的。 */
+  if (xf) for (let i = 0; i <= n; i++) { out[i] = xf(out[i]); inn[i] = xf(inn[i]); }
   let d = 'M' + out[0][0].toFixed(1) + ' ' + out[0][1].toFixed(1);
   for (let i = 1; i <= n; i++) d += 'L' + out[i][0].toFixed(1) + ' ' + out[i][1].toFixed(1);
   for (let i = n; i >= 0; i--) d += 'L' + inn[i][0].toFixed(1) + ' ' + inn[i][1].toFixed(1);
   return d + 'Z';
 }
+
+/* ---------------- v9-P1 透镜映射 ----------------
+   点质量透镜方程 θ± = (β ± √(β²+4L²))/2 的风格化版：
+   · lensUp 主像：把远侧弧压进紧贴视界上缘的窄带（455~500px），
+     影响随距离衰减（>932px 恒等），所以只改洞的邻域、不动外盘。
+   · lensLow 副像：方向绕球心镜像 + 落到视界下缘的 438px 窄带 ——
+     远侧内缘的光从视界下方绕过来，就是《星际穿越》下缘那条亮弧。
+   近侧光不弯（近似），只在远侧弧上调用。 */
+const lensUp = p => {
+  const vx = p[0] - BCX, vy = p[1] - BCY;
+  const d = Math.hypot(vx, vy) || 1;
+  const w = clamp(1 - (d - RING) / 430, 0, 1);
+  if (w <= 0) return p;
+  const dT = 398 + (d - RING) * 0.20;   /* 目标窄带：紧贴光子环外缘（398~440px） */
+  const dd = d + w * (dT - d);
+  return [BCX + vx * dd / d, BCY + vy * dd / d];
+};
+const lensLow = p => {
+  const vx = p[0] - BCX, vy = p[1] - BCY;
+  const d = Math.hypot(vx, vy) || 1;
+  const w = clamp(1 - (d - 340) / 420, 0, 1);
+  if (w <= 0) return p;
+  const dd = d + w * (438 + (d - 340) * 0.12 - d);
+  return [BCX - vx * dd / d, BCY - vy * dd / d];   /* 镜像 → 下缘副像 */
+};
 
 /* ================= 缓动 =================
    全部走真正的三次贝塞尔求解，不用幂函数近似。
@@ -192,6 +247,10 @@ function bezier(x1, y1, x2, y2) {
 const EASE_FLOW      = bezier(0.55, 0, 0.45, 1);   /* 位移主曲线，峰值 2.22 */
 const EASE_FLOW_SOFT = bezier(0.42, 0, 0.58, 1);   /* 大块/外侧，峰值 1.70（= CSS ease-in-out） */
 const EASE_OUT       = bezier(0.23, 1, 0.32, 1);   /* 只给入场 */
+/* v9-P2 坠落曲线：纯 ease-in。起步导数 = y1/x1 = 0 —— 驻留/主曲线末端速度
+   连续，不窜；末端导数 = (1-y2)/(1-x2) = ∞ —— 加速冲进视界，在最快处消失。
+   这是「被引力拽进去」的形状，与 ease-out（滑行减速停下）正好相反。 */
+const EASE_PLUNGE    = bezier(0.55, 0, 1, 0.45);
 
 /* 每条曲线的峰值斜率：把瞬时速度归一化到 0~1。
    没有这一步，换一条曲线拉伸幅度就跟着变；有了它，任何曲线下
@@ -343,6 +402,9 @@ const gBall = document.createElementNS(NS, 'circle');
 gBall.setAttribute('cx', 770); gBall.setAttribute('cy', 768);
 gBall.setAttribute('r', 596);  gBall.setAttribute('fill', '#06090F');
 gBodyPos.appendChild(gBall);
+/* v9-P0 光子环移到独立图层 gPhoton（见下方建组处）——
+   压在远侧盘与弯折像之上、近侧盘之下：视界轮廓才是一条干净的亮边，
+   而不是被内缘弧压碎的碎线。 */
 gBodyPos.setAttribute('transform',
   'translate(1083 913) scale(' + BODY_S.toFixed(5) + ' ' + (BODY_S * SQ).toFixed(5) + ') translate(-770 -768)');
 gBodyFace.setAttribute('transform',
@@ -365,7 +427,63 @@ hole.setAttribute('rx', A * 1.08); hole.setAttribute('ry', A * 1.08 * SIG);
 hole.setAttribute('fill', 'none'); hole.setAttribute('stroke', INK);
 hole.setAttribute('stroke-width', 6); hole.setAttribute('opacity', 0.22);   /* 原图的洞边没有画死的椭圆线，只留一点压边 */
 hole.setAttribute('transform', 'rotate(-20 ' + CX + ' ' + CY + ')');
-svg.append(gOrbit, hole, gBackU, gBack, gBodyIn, gFrontU, gFront);
+
+/* ---------------- v9 新图层组 ----------------
+   Z 序：星场 → 后盘 → 后碎片 → 本体(球+光子环+脸) → 上弯折像
+        → 前盘 → 前碎片 → 下弯折副像 → 潮汐流 →（纸纹最后） */
+const gStars   = document.createElementNS(NS, 'g');
+const gDebBack = document.createElementNS(NS, 'g');
+const gHalo    = document.createElementNS(NS, 'g');
+const gPhoton  = document.createElementNS(NS, 'g');
+const gDebFront= document.createElementNS(NS, 'g');
+const gHaloLow = document.createElementNS(NS, 'g');
+const gStream  = document.createElementNS(NS, 'g');
+
+/* v9-P3 静态星场：位置生成时直接烘入透镜主像位移 θ+ = (d+√(d²+4L²))/2，
+   L=180 —— 洞周 500px 内的星全部落入俘获锥被丢弃（净空），
+   500~600 一带因位移堆积变密（爱因斯坦环的密度特征）。
+   一次性计算，零每帧成本。R() 在此之前全部消耗完毕，不会扰动盘面布局。 */
+{
+  let n = 0, guard = 0;
+  while (n < 70 && guard++ < 4000) {
+    const x = 40 + R() * 1840, y = 40 + R() * 1840;
+    const vx = x - BCX, vy = y - BCY;
+    const d = Math.hypot(vx, vy);
+    if (d < 240 || d > 1500) continue;
+    const dp = 0.5 * (d + Math.sqrt(d * d + 4 * 180 * 180));
+    if (dp < 500) continue;                       /* 俘获锥内的星不放 */
+    const st = document.createElementNS(NS, 'circle');
+    st.setAttribute('cx', (BCX + vx * dp / d).toFixed(1));
+    st.setAttribute('cy', (BCY + vy * dp / d).toFixed(1));
+    st.setAttribute('r', (1.2 + R() * 1.4).toFixed(2));
+    st.setAttribute('fill', R() < 0.12 ? '#F4789B' : '#4B4560');
+    st.setAttribute('opacity', (0.16 + R() * 0.22).toFixed(3));
+    gStars.appendChild(st);
+    n++;
+  }
+}
+
+/* v9-P0 光子环：画在视界「内侧」的一圈亮边（不 blur）。
+   真实 EHT 照片里亮环就贴着阴影边界的内侧 —— 画在外面会被同半径的
+   内缘黄弧覆盖（v8 的盘内缘就在球缘上，没有空隙），画在里面才读得出来：
+   暗球 + 一圈发光边缘 = 光被引力俘获。 */
+{
+  const r1 = document.createElementNS(NS, 'ellipse');
+  r1.setAttribute('cx', BCX); r1.setAttribute('cy', BCY);
+  r1.setAttribute('rx', 360); r1.setAttribute('ry', 360 * SQ);
+  r1.setAttribute('fill', 'none'); r1.setAttribute('stroke', '#FEEB99');
+  r1.setAttribute('stroke-width', 7); r1.setAttribute('opacity', 0.78);
+  gPhoton.appendChild(r1);
+  const r2 = document.createElementNS(NS, 'ellipse');
+  r2.setAttribute('cx', BCX); r2.setAttribute('cy', BCY);
+  r2.setAttribute('rx', 342); r2.setAttribute('ry', 342 * SQ);
+  r2.setAttribute('fill', 'none'); r2.setAttribute('stroke', '#FCA346');
+  r2.setAttribute('stroke-width', 3); r2.setAttribute('opacity', 0.35);
+  gPhoton.appendChild(r2);
+}
+
+svg.append(gStars, gOrbit, hole, gBackU, gBack, gDebBack, gBodyIn,
+           gHalo, gPhoton, gFrontU, gFront, gDebFront, gHaloLow, gStream);
 
 /* ---------------- 纸质颗粒 ----------------
    平涂色块之间全是硬边，放大看就像矢量填色软件直接导出的。
@@ -430,6 +548,111 @@ for (const a of arcs) {
   gBodyDoms(a);
 }
 
+/* ---------------- v9-P1 透镜弯折像的 DOM ----------------
+   候选 = 主盘最宽的 12 条 + 全部内缘亮环（它们最亮、最贴洞，弯过去最像）。
+   每帧按「当前是否远侧」开门：弧的行程会把它们带进带出远侧半场，
+   弯折像随之出现/消失 —— 这本身就是透镜的物理条件（只有远侧的光被折上来）。 */
+const hCand = arcs.filter(x => !x.front).sort((x, y) => y.bw - x.bw);
+for (let i = 0; i < hCand.length; i++) {
+  const a = hCand[i];
+  if (NOHALO) break;
+  if (i >= 12 && !a.inner) continue;
+  const h1 = document.createElementNS(NS, 'path');
+  h1.setAttribute('fill', BANDS[a.band]);
+  h1.setAttribute('opacity', 0);
+  h1.setAttribute('stroke', 'none');
+  gHalo.appendChild(h1);
+  a.h1 = h1;
+  if (a.inner) {
+    const h2 = document.createElementNS(NS, 'path');
+    h2.setAttribute('fill', BANDS[a.band]);
+    h2.setAttribute('opacity', 0);
+    h2.setAttribute('stroke', 'none');
+    gHaloLow.appendChild(h2);
+    a.h2 = h2;
+  }
+}
+
+/* ---------------- v9-P3 环境碎片 ----------------
+   26 颗小碎屑在盘面内沿对数螺旋坠入：r(θ) = r0·e^(−0.26·Δθ)。
+   生命参数二次缓入（越掉越快），到 k<1.07（视界）被吞 → 外缘重生。
+   前后景深按 sin(θ) 实时归组（穿过远侧时让路给本体）。 */
+const DEBN = 32;
+const DEBC = ['#8A8699', '#5B45C4', '#FCA346', '#B068D2', '#F4789B'];
+const debris = [];
+function newDeb(first) {
+  const el = document.createElementNS(NS, 'ellipse');
+  el.setAttribute('ry', (2.4 + R() * 1.6).toFixed(2));
+  el.setAttribute('rx', 7);
+  el.setAttribute('fill', DEBC[(R() * DEBC.length) | 0]);
+  const o = 0.32 + R() * 0.3;
+  el.setAttribute('opacity', 0);
+  (R() < 0.5 ? gDebBack : gDebFront).appendChild(el);
+  return { el, o, back: null,
+    r0: 980 + R() * 480, th0: R() * 6.283,
+    dth: 5.0 + R() * 1.1, T: 16 + R() * 14,
+    t: first ? R() * 14 : 0 };
+}
+for (let i = 0; i < DEBN; i++) debris.push(newDeb(true));
+
+function updDebris(dts) {
+  for (const db of debris) {
+    db.t += dts;
+    const s = Math.min(1, db.t / db.T);
+    const se = s * s;                                  /* ease-in 坠落加速 */
+    const th = db.th0 + db.dth * se;
+    const k = (db.r0 * Math.exp(-0.26 * db.dth * se)) / A;
+    if (k < 1.07) {                                    /* 被吞 → 外缘重生 */
+      db.el.setAttribute('opacity', 0);
+      db.t = 0; db.th0 = R() * 6.283; db.r0 = 980 + R() * 480;
+      continue;
+    }
+    const p = pt(k, th), p2 = pt(k, th + 0.02);
+    const ang = Math.atan2(p2[1] - p[1], p2[0] - p[0]) * 180 / Math.PI;
+    const spd = Math.hypot(p2[0] - p[0], p2[1] - p[1]) / 0.02;   /* px/rad */
+    const st = 1 + Math.min(2.4, spd * se * 0.0045);   /* 越快越拉长 */
+    db.el.setAttribute('rx', (7 * st).toFixed(1));
+    db.el.setAttribute('transform',
+      'translate(' + p[0].toFixed(1) + ' ' + p[1].toFixed(1) + ') rotate(' + ang.toFixed(1) + ')');
+    const fadeK = clamp((k - 1.07) / 0.2, 0, 1);       /* 贴近视界渐隐 */
+    db.el.setAttribute('opacity', (db.o * Math.min(1, s * 18) * fadeK).toFixed(3));
+    const back = Math.sin(th) < 0;
+    if (back !== db.back) { db.back = back; (back ? gDebBack : gDebFront).appendChild(db.el); }
+  }
+}
+
+/* ---------------- v9-P3 潮汐流事件 ----------------
+   每 15~25s 一条长带从外缘被拽入：头端沿开普勒式加速 dive 到视界，
+   尾端仍挂在外盘 —— 一次完整的「撕碎 - 拉伸 - 吞没」叙事。 */
+const streamEl = document.createElementNS(NS, 'path');
+streamEl.setAttribute('fill', '#FCA346');
+streamEl.setAttribute('stroke', 'none');
+streamEl.setAttribute('opacity', 0);
+gStream.appendChild(streamEl);
+const STR = { on: false, t: 0, dur: 7.5, gap: 5 + R() * 8, phi0: 0, kO: 2.82 };
+function updStream(dts) {
+  if (RM) return;
+  if (!STR.on) {
+    STR.gap -= dts;
+    if (STR.gap <= 0) { STR.on = true; STR.t = 0; STR.phi0 = R() * 6.283; }
+    return;
+  }
+  STR.t += dts;
+  const e = Math.pow(Math.min(1, STR.t / STR.dur), 2);   /* ease-in：越掉越快 */
+  const kHead = STR.kO - (STR.kO - 1.06) * e;
+  const kd = kHead - STR.kO;                             /* 头在内(u=1)、尾挂外缘 */
+  const dphi = 1.9 + 0.6 * e;
+  streamEl.setAttribute('d', ribbonPath(STR.kO, STR.phi0 + 4.4 * e, dphi,
+                                        26 * (1 - 0.45 * e), 18, { kd }));
+  const fadeH = kHead > 1.14 ? 1 : Math.max(0, (kHead - 1.04) / 0.10);
+  streamEl.setAttribute('opacity', (0.5 * smoothstep(0, 0.06, e) * fadeH).toFixed(3));
+  if (STR.t >= STR.dur) {
+    STR.on = false; STR.gap = 15 + R() * 12;
+    streamEl.setAttribute('opacity', 0);
+  }
+}
+updDebris(0);   /* 首帧落位：碎片在入场/定格截图里也有位置，不会从原点弹入 */
+
 /* 弧的填色层挂到对应的前/后组 */
 function gBodyDoms(a) {
   const bd = document.createElementNS(NS, 'path');
@@ -465,6 +688,10 @@ let clock = 0, flow = 0, moving = false, orderTick = 0;
 const DC = 0.004;          /* 求瞬时速度用的相位步长 */
 
 function renderFlow() {
+  /* v9-P5 径向呼吸：内缘 ±0.9%、按 1/k 向外衰减（替代 v8 的整组均匀缩放，
+     那种呼吸内外同幅，读作「整体缩放」而不是「盘在搏动」）。减少动效时归零。 */
+  const brA = RM ? 0 : 0.009;
+  const brPh = Math.sin(clock * 0.52);
   for (const a of arcs) {
     const t = flow;
     const raw = (t * a.w + a.ph) / a.span;
@@ -475,28 +702,84 @@ function renderFlow() {
     const p2 = travelEase(cyc + DC, a.hold, a.ease);
     const v  = Math.min(1, Math.abs(p2 - p) / DC / a.peak);  // 归一化瞬时速度 0~1
 
-    a.phi0 = a.home + a.span * p;
+    let k = a.k * (1 + (brA / Math.max(a.k, 1)) * brPh);
 
-    /* 水滴的一生：驻留时从一颗小核长成整条 → 跑起来拉长变细、头前鼓 →
-       到点减速停住 → 收尖化掉。驻留期间是完整的，不是一边停一边淡 */
+    /* v9-P2 坠落段：ISCO(1.55) 以内的弧在行程末 25% 切入纯 ease-in 俯冲，
+       半径收敛到视界、潮汐拉伸变长变细；ISCO 以外只做收尾内倾（kd 负偏），
+       给全盘一个「向内的物质流」方向，不越车道、不穿盘。 */
+    let dphiMul = 1, bwMul = 1, plunging = false, pe = 0, lean = 0;
+    if (!NOPL && a.k > 1.12 && a.k <= ISCO && cyc > 1 - PLFRAC) {
+      plunging = true;
+      pe = EASE_PLUNGE((cyc - (1 - PLFRAC)) / PLFRAC);
+      k -= (k - K_END) * pe;
+      dphiMul = 1 + 0.38 * pe;
+      bwMul   = 1 - 0.30 * pe;
+    } else if (!NOPL && a.k > ISCO && cyc > 0.86) {
+      const le = (cyc - 0.86) / 0.14;
+      lean = -Math.min(0.10, (a.k - 1.35) * 0.09) * le;
+      dphiMul = 1 + 0.16 * le;
+      bwMul   = 1 - 0.08 * le;
+    }
+    /* v9-P5 整体公转 + 坠落时的开普勒联动追加扫角（越近转越快） */
+    a.phi0 = a.home + a.span * p + ROT * t
+           + (plunging ? 0.42 * Math.pow(a.w / CFG.SPEED, 1.5) * pe : 0);
+
+    /* 水滴的一生：驻留时长成整条 → 跑起来拉长变细 → 到点减速停住。
+       坠落时改判：保持实体到行程末 3%，在光子环处断掉 —— 被吞，不是溶。 */
     const rIn  = Math.max(0.020, a.hold * 0.50);   /* 出生：在驻留期内长完 */
-    const rOut = Math.max(0.035, a.hold * 1.50);   /* 消散：边走边化开，不是停下再消失 */
-    const env  = Math.min(smoothstep(0, rIn, cyc), smoothstep(0, rOut, 1 - cyc));
-    /* 出生/消亡只做很小的收缩：f5m 的观感靠「条数够、留白匀」，
-       形状一缩，画面就掉密度、变成孤立的笔画 */
-    const dphi = a.d0 * (0.55 + 0.45 * env) * (1 + 0.22 * v);
-    const bw   = a.bw * (0.70 + 0.30 * env) * (1 - 0.05 * v);
-    const sh   = shOf(a);
+    const rOut = Math.max(0.035, a.hold * 1.50);
+    let env  = Math.min(smoothstep(0, rIn, cyc), smoothstep(0, rOut, 1 - cyc));
+    if (plunging) env = Math.min(env, smoothstep(0.012, 0.028, 1 - cyc));
 
-    const d = ribbonPath(a.k, a.phi0, dphi, bw, 15, sh);
+    const dphi = a.d0 * (0.55 + 0.45 * env) * (1 + 0.22 * v) * dphiMul;
+    const bw   = a.bw * (0.70 + 0.30 * env) * (1 - 0.05 * v) * bwMul;
+    const sh   = { kd: a.kd + lean };
+
+    /* v9-P4 多普勒集束：逼近侧（左）增亮、远离侧压暗，只调不透明度 */
+    const phiMid = a.phi0 + dphi * 0.5;
+    const dop = 1 + DOP_AMP * Math.cos(phiMid - DOP_PHI);
+
+    /* v9-P2 吞没判定：屏幕距离进入光子环内侧（或 k 到底）即消失 */
+    let swallow = 0;
+    if (plunging) {
+      const pm = pt(k, phiMid);
+      if (Math.hypot(pm[0] - BCX, pm[1] - BCY) < 384 || k <= K_END + 0.004) swallow = 1;
+    }
+
+    const d = ribbonPath(k, a.phi0, dphi, bw, 15, sh);
     a.bd.setAttribute('d', d);
     if (UN_OP > 0.01 && CFG.T > 0.01 && !a.front) {
       a.un.setAttribute('d',
-        ribbonPath(a.k * 0.96, a.phi0, dphi * 1.03, bw * 1.25, 12, sh));
+        ribbonPath(k * 0.96, a.phi0, dphi * 1.03, bw * 1.25, 12, sh));
     }
-    const fade = (0.02 + 0.98 * env) * (SOLO < 0 ? 1 : (a.solo ? 1 : 0.05));
-    a.bd.setAttribute('opacity', (a.op * fade).toFixed(3));
-    a.un.setAttribute('opacity', (UN_OP * CFG.T * fade).toFixed(3));
+    let fade = (0.02 + 0.98 * env) * (1 - swallow) * dop;
+    fade *= (SOLO < 0 ? 1 : (a.solo ? 1 : 0.05));
+    a.bd.setAttribute('opacity', Math.max(0, a.op * fade).toFixed(3));
+    a.un.setAttribute('opacity', Math.max(0, UN_OP * CFG.T * fade).toFixed(3));
+
+    /* v9-P4 引力红移：俯冲过半后整条压暗一档（离散切换，快运动中不可见） */
+    const dark = plunging && pe > 0.45;
+    if (dark !== a.dark) {
+      a.dark = dark;
+      a.bd.setAttribute('fill', dark ? DARKB[a.band] : BANDS[a.band]);
+    }
+
+    /* v9-P1 弯折像：只在弧当前处于远侧时存在。
+       门控必须是平滑的 —— 弧随行程进出远侧半场，硬开关会让透明度突跳；
+       smoothstep(-sinφ: 0.05→0.40) 让它随几何自然淡入淡出。 */
+    const hGate = smoothstep(0.05, 0.40, -Math.sin(phiMid));
+    if (a.h1) {
+      if (hGate > 0.002) {
+        a.h1.setAttribute('d', ribbonPath(k, a.phi0, dphi, bw * 0.55, 12, sh, lensUp));
+        a.h1.setAttribute('opacity', Math.max(0, fade * 0.50 * hGate).toFixed(3));
+      } else a.h1.setAttribute('opacity', 0);
+    }
+    if (a.h2) {
+      if (hGate > 0.002) {
+        a.h2.setAttribute('d', ribbonPath(k, a.phi0, dphi, bw * 0.55, 10, sh, lensLow));
+        a.h2.setAttribute('opacity', Math.max(0, fade * 0.34 * hGate).toFixed(3));
+      } else a.h2.setAttribute('opacity', 0);
+    }
   }
   /* 深度重排：每 8 帧一次。顺序几乎不变，插排很便宜 */
   if (--orderTick <= 0) {
@@ -525,12 +808,9 @@ function startMotion() {
   moving = true;
   for (const a of arcs) a.home = a.phi0;
   renderFlow();
-  if (RM) return;                      /* 减少动效：只保留流动，不加整体缩放 */
-  /* 极慢的整体「呼吸」：前后两组同参数同步（0.997↔1.005，12s 一个来回，
-     fromTo 避免第一帧跳变），视觉上等价于整盘呼吸 */
-  for (const g of [gBack, gFront]) gsap.fromTo(g, { scale: 0.997 },
-    { scale: 1.005, svgOrigin: CX + ' ' + CY,
-      duration: 12, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+  /* v9：整组均匀缩放的「呼吸」已删除 —— 均匀缩放读作整体缩放而非盘体搏动。
+     现在的呼吸是径向差分的（renderFlow 内 brA/brPh）：内缘 ±0.9%、按 1/k
+     向外衰减，且与坠落/公转共用同一时钟，不会有两组缩放互相打架。 */
 }
 function stopMotion() {
   moving = false;
@@ -560,6 +840,7 @@ function drawFinal() {
 }
 
 const st = { p: 0 };
+gsap.set([gDebBack, gDebFront], { opacity: 0 });   /* 入场前碎片隐身，1.0s 后随盘浮现 */
 const intro = gsap.timeline({ paused: true })
   /* 本体先出场：淡入 + 轻微放大（球心局部坐标 770 768），
      主角亮相 0.15s 之后弧线才开始涌出 */
@@ -567,7 +848,13 @@ const intro = gsap.timeline({ paused: true })
     { opacity: 1, scale: 1, duration: 0.9, ease: 'power2.out',
       svgOrigin: '770 768' }, 0)
   .to(st, { p: 1, duration: 2.0, ease: 'none',
-    onUpdate: () => drawIntro(st.p), onComplete: startMotion }, 0.15);
+    onUpdate: () => drawIntro(st.p), onComplete: startMotion }, 0.15)
+  /* v9：碎片层在盘成形过半后淡入（1.0s 起、1.6s 到位） */
+  .fromTo([gDebBack, gDebFront], { opacity: 0 },
+    { opacity: 1, duration: 1.6, ease: 'none' }, 1.0)
+  /* v9：光子环不属于本体入场层（本体从 82% 放大），单独淡入，
+     否则前 0.9s 环会浮在缩小中的球外面 */
+  .fromTo(gPhoton, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'none' }, 0.55);
 
 /* ---------------- 控件 ---------------- */
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -625,6 +912,16 @@ bOrbit.onclick = () => {
   bOrbit.classList.toggle('on', !on);
 };
 
+/* v9 真实模式：藏五官只留球 + 光子环 —— 写实元素与卡通脸互不干扰。
+   ?real 可直达（截图/对比用）。 */
+const bReal = document.getElementById('bReal');
+const setReal = on => {
+  gBodyFace.style.display = on ? 'none' : '';
+  bReal.classList.toggle('on', on);
+};
+setReal(location.search.includes('real'));
+bReal.onclick = () => setReal(gBodyFace.style.display !== 'none');
+
 const ro = document.getElementById('ro');
 let fc = 0, fm = 0;
 gsap.ticker.add((t, dtMs) => {
@@ -636,10 +933,12 @@ gsap.ticker.add((t, dtMs) => {
        否则相位会被正弦倒推回去，出现倒退抖动。 */
     flow += dts * (1 + 0.08 * Math.sin(clock * 0.42));
     renderFlow();
+    updDebris(dts);        /* v9-P3：碎片螺旋坠入 */
+    updStream(dts);        /* v9-P3：潮汐流事件 */
   }
   fc++;
   if (t - fm > 600) {
-    ro.textContent = Math.round(fc * 1000 / (t - fm)) + 'fps · ' + arcs.length + ' 笔 · 压扁 ' + SQ.toFixed(2);
+    ro.textContent = Math.round(fc * 1000 / (t - fm)) + 'fps · ' + arcs.length + ' 笔 · v9 · 碎屑 ' + DEBN + ' · 压扁 ' + SQ.toFixed(2);
     fc = 0; fm = t;
   }
 });
@@ -647,15 +946,23 @@ gsap.ticker.add((t, dtMs) => {
 /* ---------------- 启动 ---------------- */
 for (const a of arcs) a.home = a.phi0;
 const mT = location.search.match(/[?&]t=([\d.]+)/);
+/* v9 调试：?deb=秒 把碎片推进到第 N 秒（验证坠落分布）；
+   ?str=0~1 把潮汐流定格在生命周期 0~1 处（验证长带造型）。 */
+const mDeb = location.search.match(/[?&]deb=([\d.]+)/);
+if (mDeb) updDebris(parseFloat(mDeb[1]));
+const mStr = location.search.match(/[?&]str=([\d.]+)/);
+if (mStr) { STR.on = true; STR.t = parseFloat(mStr[1]) * STR.dur; updStream(0); }
 if (location.search.includes('freeze')) { P.on = false; }   /* 定格用：不让 ticker 推进 */
 if (location.search.includes('steady')) {
   drawFinal(); moving = true;
   gsap.set(gBodyIn, { opacity: 1, scale: 1 });   /* 直达稳态：跳过入场，主体必须直接在场 */
+  gsap.set(gPhoton, { opacity: 1 });             /* v9：光子环同步在场 */
+  gsap.set([gDebBack, gDebFront], { opacity: 1 });  /* v9：碎片同步在场 */
   if (mT) { clock = flow = parseFloat(mT[1]); renderFlow(); }
 } else if (mT) {
   const T = parseFloat(mT[1]);
   intro.progress(Math.min(1, T / 2.15));
-  if (T >= 2.15) { drawFinal(); moving = true; gsap.set(gBodyIn, { opacity: 1, scale: 1 });
+  if (T >= 2.15) { drawFinal(); moving = true; gsap.set(gBodyIn, { opacity: 1, scale: 1 }); gsap.set(gPhoton, { opacity: 1 });
     clock = flow = T - 2.15; renderFlow(); }
 } else {
   drawIntro(0);
