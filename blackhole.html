@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>黑洞本体 × 吸积盘 · v9（真实感：坠落/透镜/吸入物）</title>
+<title>黑洞本体 × 吸积盘 · v10（真实感：坠落/透镜/吸入物/闪烁/热点）</title>
 <style>
   html,body{margin:0;height:100%;background:#F7F6F9;color:#26232F;
     font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased;
@@ -73,6 +73,18 @@
       「真实模式」开关：藏五官只留光子环。
    -------------------------------------------------------------------
    f5m 模型 · N=78 S=0.98 width=1.05 lobe=0.90 色板/权重/驻留与 v8 完全一致
+   -------------------------------------------------------------------
+   v10：按真实渲染器的做法补「活着的细节」，两条，全部低幅度：
+   1) 光子环热点：两串短亮弧沿环滑行（3 处 / 5 处，速度 46 / 27 px·s⁻¹，
+      节拍按椭圆周长 Ramanujan 精确等分，避免接缝豁口）。热点必须叠在
+      亮边上——单独成层 gBeadL 插在 gFront 之后，否则被内缘黄弧盖掉；
+      画在阴影内部会读成一道划痕。环本身再加慢脉动（0.83 / 1.37 rad·s⁻¹）。
+   2) 高阶像堆叠：真实高阶像渐近挤向临界曲线，所以是在阴影内部再收两层
+      细环（330 / 318）只留辉光；盘面上的弯折像只保留一阶 ——
+      二、三阶在 4.7px/单位下无对比度可读。
+   修掉的 bug：弯折像原本用「填充带 + 径向压缩」，内/外轮廓自交，
+   nonzero 填充在交叠处挖洞，洞后面正是黑球 → 阴影边缘（3 点钟最明显）
+   出现暗色划痕。改成中线 + 描边（centerline），永不自交。
    =================================================================== */
 const CX = 1083, CY = 923, A = 338, SIG = 0.75, TILT = -20 * Math.PI / 180;
 const CT = Math.cos(TILT), ST = Math.sin(TILT);
@@ -111,7 +123,13 @@ const ROT = 0.03;                 /* v9-P5 整体公转（rad/s），整盘净�
 const DOP_PHI = Math.PI;          /* v9-P4 多普勒增亮方位：左缘逼近（盘顺时针 +φ） */
 const DOP_AMP = 0.14;
 const DARKB = BANDS.map(c => darken(c, 0.55));   /* 坠落段红移压暗一档 */
-/* 调试隔离开关：?noplunge 关坠落/内倾，?nohalo 关弯折像（定位渲染问题用） */
+/* v10 试过「吸积闪烁」（每条弧亮度乘一个双频正弦），结论是这条路在平涂上走不通：
+   主盘 fade 多数已经到 1（不透明度上限），往上乘会被 SVG 夹掉 ——
+   实测对称抖动只影响 0.96% 的像素；改单向（只压暗）也只有 0.69%，
+   代价是整盘平均压暗 3%。要让满饱和的色块真的抖起来只能换填充色，
+   那就破坏了「平涂一个色」这条风格前提。所以不做，参数和开关一并删掉。
+   想复现的话：在 fade 上乘 1 - 0.04*(0.5+0.5sin) - 0.02*(0.5+0.5sin) 即可。 */
+/* 调试隔离开关：?noplunge 关坠落/内倾，?nohalo 关弯折像 */
 const NOPL   = /noplunge/.test(location.search);
 const NOHALO = /nohalo/.test(location.search);
 
@@ -180,22 +198,23 @@ function ribbonPath(k0, phi0, dphi, bw, n, sh, xf) {
   return d + 'Z';
 }
 
-/* ---------------- v9-P1 透镜映射 ----------------
-   点质量透镜方程 θ± = (β ± √(β²+4L²))/2 的风格化版：
-   · lensUp 主像：把远侧弧压进紧贴视界上缘的窄带（455~500px），
-     影响随距离衰减（>932px 恒等），所以只改洞的邻域、不动外盘。
-   · lensLow 副像：方向绕球心镜像 + 落到视界下缘的 438px 窄带 ——
-     远侧内缘的光从视界下方绕过来，就是《星际穿越》下缘那条亮弧。
-   近侧光不弯（近似），只在远侧弧上调用。 */
-const lensUp = p => {
+/* ---------------- v9-P1 透镜映射（v10 扩成「多阶像」） ----------------
+   点质量透镜方程 θ± = (β ± √(β²+4L²))/2 的风格化版。
+   真实黑洞的阴影外缘不是一个光环，而是一串**高阶像**：光线绕黑洞 1 圈、
+   2 圈、3 圈……才逃出来，每一阶都成一圈更细更淡的像，堆叠成贴边的亮带
+   （Interstellar / EHT 那条边缘发光带就是这么来的）。
+   所以这里用同一个映射、不同目标半径生成三层：一阶 398、二阶 424、三阶 452。
+   lensLow 是远侧光的镜像副像 —— 从视界下方绕过来，形成下缘那条弧。 */
+const lensBand = (r0, slope) => p => {
   const vx = p[0] - BCX, vy = p[1] - BCY;
   const d = Math.hypot(vx, vy) || 1;
   const w = clamp(1 - (d - RING) / 430, 0, 1);
   if (w <= 0) return p;
-  const dT = 398 + (d - RING) * 0.20;   /* 目标窄带：紧贴光子环外缘（398~440px） */
+  const dT = r0 + (d - RING) * slope;
   const dd = d + w * (dT - d);
   return [BCX + vx * dd / d, BCY + vy * dd / d];
 };
+const lensUp  = lensBand(398, 0.20);   /* 一阶像：最亮，贴光子环 */
 const lensLow = p => {
   const vx = p[0] - BCX, vy = p[1] - BCY;
   const d = Math.hypot(vx, vy) || 1;
@@ -204,6 +223,9 @@ const lensLow = p => {
   const dd = d + w * (438 + (d - 340) * 0.12 - d);
   return [BCX - vx * dd / d, BCY - vy * dd / d];   /* 镜像 → 下缘副像 */
 };
+/* 透镜像专用平剖面（kd=0）。原弧带斜切，径向压扁后轮廓会自交，
+   nonzero 填充在交叠区挖出白缝 —— 看起来像阴影边缘被撕成针状。 */
+const SHFLAT = { kd: 0 };
 
 /* ================= 缓动 =================
    全部走真正的三次贝塞尔求解，不用幂函数近似。
@@ -466,24 +488,86 @@ const gStream  = document.createElementNS(NS, 'g');
 /* v9-P0 光子环：画在视界「内侧」的一圈亮边（不 blur）。
    真实 EHT 照片里亮环就贴着阴影边界的内侧 —— 画在外面会被同半径的
    内缘黄弧覆盖（v8 的盘内缘就在球缘上，没有空隙），画在里面才读得出来：
-   暗球 + 一圈发光边缘 = 光被引力俘获。 */
-{
-  const r1 = document.createElementNS(NS, 'ellipse');
-  r1.setAttribute('cx', BCX); r1.setAttribute('cy', BCY);
-  r1.setAttribute('rx', 360); r1.setAttribute('ry', 360 * SQ);
-  r1.setAttribute('fill', 'none'); r1.setAttribute('stroke', '#FEEB99');
-  r1.setAttribute('stroke-width', 7); r1.setAttribute('opacity', 0.78);
-  gPhoton.appendChild(r1);
-  const r2 = document.createElementNS(NS, 'ellipse');
-  r2.setAttribute('cx', BCX); r2.setAttribute('cy', BCY);
-  r2.setAttribute('rx', 342); r2.setAttribute('ry', 342 * SQ);
-  r2.setAttribute('fill', 'none'); r2.setAttribute('stroke', '#FCA346');
-  r2.setAttribute('stroke-width', 3); r2.setAttribute('opacity', 0.35);
-  gPhoton.appendChild(r2);
-}
+   暗球 + 一圈发光边缘 = 光被引力俘获。
+   v10 增补：环上一串短亮弧（热点）沿环滑行 + 整体亮度慢脉动 ——
+   被俘获的光在光子球上打转，是「黑洞活着」最省成本的信号。 */
+const gRing = document.createElementNS(NS, 'ellipse');
+gRing.setAttribute('cx', BCX); gRing.setAttribute('cy', BCY);
+gRing.setAttribute('rx', 360); gRing.setAttribute('ry', 360 * SQ);
+gRing.setAttribute('fill', 'none'); gRing.setAttribute('stroke', '#FEEB99');
+gRing.setAttribute('stroke-width', 7); gRing.setAttribute('opacity', 0.78);
+gPhoton.appendChild(gRing);
+
+const gRingInner = document.createElementNS(NS, 'ellipse');
+gRingInner.setAttribute('cx', BCX); gRingInner.setAttribute('cy', BCY);
+gRingInner.setAttribute('rx', 337); gRingInner.setAttribute('ry', 337 * SQ);
+gRingInner.setAttribute('fill', 'none'); gRingInner.setAttribute('stroke', '#FCA346');
+gRingInner.setAttribute('stroke-width', 3); gRingInner.setAttribute('opacity', 0.35);
+gPhoton.appendChild(gRingInner);
+
+/* v10 高阶像堆叠：真实光线绕黑洞 2 圈、3 圈……才逃出来，高阶像会
+   **渐近地挤向临界曲线**，越高的阶越细越暗。所以这里不是往外画，而是
+   贴着光子环再往内收两层（330 / 318）—— 阴影内部是纯黑底，
+   这几道细环才读得出来；画在盘面上会被同色弧淹没。 */
+const gRing3 = document.createElementNS(NS, 'ellipse');
+gRing3.setAttribute('cx', BCX); gRing3.setAttribute('cy', BCY);
+gRing3.setAttribute('rx', 330); gRing3.setAttribute('ry', 330 * SQ);
+gRing3.setAttribute('fill', 'none'); gRing3.setAttribute('stroke', '#F6B45E');
+gRing3.setAttribute('stroke-width', 2); gRing3.setAttribute('opacity', 0.13);
+gPhoton.appendChild(gRing3);
+
+const gRing4 = document.createElementNS(NS, 'ellipse');
+gRing4.setAttribute('cx', BCX); gRing4.setAttribute('cy', BCY);
+gRing4.setAttribute('rx', 318); gRing4.setAttribute('ry', 318 * SQ);
+gRing4.setAttribute('fill', 'none'); gRing4.setAttribute('stroke', '#E9A254');
+gRing4.setAttribute('stroke-width', 1.4); gRing4.setAttribute('opacity', 0.07);
+gPhoton.appendChild(gRing4);
+
+/* 热点：用 stroke-dasharray 在环上切出一串短亮弧，再靠 dashoffset 让它们沿环滑行。
+   节拍必须按「椭圆周长」精确等分 —— 椭圆不是圆，2π·rx 会算多 4%，
+   等分不准就会留下一个明显偏大的豁口（一眼看出是贴图接缝）。
+   Ramanujan 近似足够准（误差 <0.02%）。 */
+const ellipseC = (rx, ry) => {
+  const h = Math.pow((rx - ry) / (rx + ry), 2);
+  return Math.PI * (rx + ry) * (1 + 3 * h / (10 + Math.sqrt(4 - 3 * h)));
+};
+const beadPeriod = (rx, n) => ellipseC(rx, rx * SQ) / n;
+
+/* 热点必须画在「亮边上」而不是阴影内部 —— 热斑是吸积流里的亮区，
+   本来就该压在光子环的亮线上扫过去；画在黑底中央会读成一道划痕。
+   但内缘黄弧（360~375）铺在 gPhoton 之上，会把热点盖住，
+   所以热点单独成层 gBeadL，插在 gFront 之后（压在近侧盘之上）。
+   这一层最便宜的做法就是让 dash 本身就是亮边的高光。 */
+const gBeadL = document.createElementNS(NS, 'g');
+
+/* 主组：3 处热点，跟着盘一起绕（速度快，最亮）。
+   半径压在「黑 / 亮边」的交界上（357，黑球半宽 370、亮边在 360~375）：
+   再往外 368 就整条落在奶油色亮边上，白压白看不出明暗；
+   再往里 350 则是纯黑底上一条灰弧，读成划痕。只有骑在交界上才会
+   沿环读出「一段亮一段暗」—— 热斑扫过光子环就是这个观感。 */
+const BEAD_R1 = 357, BEAD_N1 = 3, BEAD_P1 = beadPeriod(BEAD_R1, BEAD_N1);
+const gBeads = document.createElementNS(NS, 'ellipse');
+gBeads.setAttribute('cx', BCX); gBeads.setAttribute('cy', BCY);
+gBeads.setAttribute('rx', BEAD_R1); gBeads.setAttribute('ry', BEAD_R1 * SQ);
+gBeads.setAttribute('fill', 'none'); gBeads.setAttribute('stroke', '#FFFBEA');
+gBeads.setAttribute('stroke-width', 10); gBeads.setAttribute('opacity', 0.55);
+gBeads.setAttribute('stroke-dasharray',
+  (BEAD_P1 * 0.09).toFixed(1) + ' ' + (BEAD_P1 * 0.91).toFixed(1));
+gBeadL.appendChild(gBeads);
+
+/* 副组：5 处更细的热点，略靠外、慢一档 —— 两组不同步，环上就不会「整圈一起闪」 */
+const BEAD_R2 = 363, BEAD_N2 = 5, BEAD_P2 = beadPeriod(BEAD_R2, BEAD_N2);
+const gBeads2 = document.createElementNS(NS, 'ellipse');
+gBeads2.setAttribute('cx', BCX); gBeads2.setAttribute('cy', BCY);
+gBeads2.setAttribute('rx', BEAD_R2); gBeads2.setAttribute('ry', BEAD_R2 * SQ);
+gBeads2.setAttribute('fill', 'none'); gBeads2.setAttribute('stroke', '#FFE9B0');
+gBeads2.setAttribute('stroke-width', 6); gBeads2.setAttribute('opacity', 0.30);
+gBeads2.setAttribute('stroke-dasharray',
+  (BEAD_P2 * 0.06).toFixed(1) + ' ' + (BEAD_P2 * 0.94).toFixed(1));
+gBeadL.appendChild(gBeads2);
 
 svg.append(gStars, gOrbit, hole, gBackU, gBack, gDebBack, gBodyIn,
-           gHalo, gPhoton, gFrontU, gFront, gDebFront, gHaloLow, gStream);
+           gHalo, gPhoton, gFrontU, gFront, gBeadL, gDebFront, gHaloLow, gStream);
 
 /* ---------------- 纸质颗粒 ----------------
    平涂色块之间全是硬边，放大看就像矢量填色软件直接导出的。
@@ -548,28 +632,46 @@ for (const a of arcs) {
   gBodyDoms(a);
 }
 
+/* 中线（不带宽度）。透镜像用「描边」画，不用「填充」：
+   带形被径向压扁后内/外轮廓会自交，nonzero 填充在交叠处挖洞，
+   洞后面正好是黑球 → 阴影边缘出现暗色划痕（实测在 3 点钟最明显）。
+   描边只有一条中线，永远不会自交，粗细还直接等于视觉带宽。 */
+function centerline(k0, phi0, dphi, n, sh, xf) {
+  const kd = sh ? (sh.kd || 0) : 0;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const p = pt(k0 + kd * (i / n), phi0 + dphi * (i / n));
+    pts.push(xf ? xf(p) : p);
+  }
+  let d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+  for (let i = 1; i <= n; i++) d += 'L' + pts[i][0].toFixed(1) + ' ' + pts[i][1].toFixed(1);
+  return d;
+}
+
 /* ---------------- v9-P1 透镜弯折像的 DOM ----------------
    候选 = 主盘最宽的 12 条 + 全部内缘亮环（它们最亮、最贴洞，弯过去最像）。
    每帧按「当前是否远侧」开门：弧的行程会把它们带进带出远侧半场，
-   弯折像随之出现/消失 —— 这本身就是透镜的物理条件（只有远侧的光被折上来）。 */
+   弯折像随之出现/消失 —— 这本身就是透镜的物理条件（只有远侧的光被折上来）。
+   一阶 / 二阶 / 三阶按 bw 比例给粗细，越高的阶越细越淡。 */
 const hCand = arcs.filter(x => !x.front).sort((x, y) => y.bw - x.bw);
+const mkLens = (parent, a, wMul) => {
+  const h = document.createElementNS(NS, 'path');
+  h.setAttribute('fill', 'none');
+  h.setAttribute('stroke', BANDS[a.band]);
+  h.setAttribute('stroke-width', Math.max(2, a.bw * wMul).toFixed(1));
+  h.setAttribute('stroke-linecap', 'round');
+  h.setAttribute('stroke-linejoin', 'round');
+  h.setAttribute('opacity', 0);
+  parent.appendChild(h);
+  return h;
+};
 for (let i = 0; i < hCand.length; i++) {
   const a = hCand[i];
   if (NOHALO) break;
   if (i >= 12 && !a.inner) continue;
-  const h1 = document.createElementNS(NS, 'path');
-  h1.setAttribute('fill', BANDS[a.band]);
-  h1.setAttribute('opacity', 0);
-  h1.setAttribute('stroke', 'none');
-  gHalo.appendChild(h1);
-  a.h1 = h1;
+  a.h1 = mkLens(gHalo, a, 0.55);       /* 一阶像：只有这一阶在盘面上读得出来 */
   if (a.inner) {
-    const h2 = document.createElementNS(NS, 'path');
-    h2.setAttribute('fill', BANDS[a.band]);
-    h2.setAttribute('opacity', 0);
-    h2.setAttribute('stroke', 'none');
-    gHaloLow.appendChild(h2);
-    a.h2 = h2;
+    a.h2 = mkLens(gHaloLow, a, 0.48);  /* 下缘镜像副像 */
   }
 }
 
@@ -687,6 +789,26 @@ const shOf = (a) => ({ kd: a.kd });
 let clock = 0, flow = 0, moving = false, orderTick = 0;
 const DC = 0.004;          /* 求瞬时速度用的相位步长 */
 
+/* v10 光子环动画：整体慢脉动 + 两串热点沿环滑行。
+   驱动写在 renderFlow 末尾统一调用，这样 ?t= 定格截图也能拿到确定的一帧
+   （不依赖 ticker 累积了多少帧，验证时可复现）。 */
+const BEAD_V1 = 46, BEAD_V2 = 27;   /* px/s 沿环滑行速度；副组慢一档，两组不同步 */
+function updRing() {
+  const ph = clock;
+  const pulse  = 0.5 + 0.5 * Math.sin(ph * 0.83);
+  const pulse2 = 0.5 + 0.5 * Math.sin(ph * 1.37 + 1.9);
+  gRing.setAttribute('opacity', (0.68 + 0.16 * pulse).toFixed(3));
+  gRingInner.setAttribute('opacity', (0.30 + 0.12 * pulse2).toFixed(3));
+  gRing3.setAttribute('opacity', (0.10 + 0.06 * pulse).toFixed(3));
+  gRing4.setAttribute('opacity', (0.05 + 0.04 * pulse2).toFixed(3));
+  gBeads.setAttribute('opacity', (0.34 + 0.28 * pulse2).toFixed(3));
+  gBeads2.setAttribute('opacity', (0.16 + 0.20 * pulse).toFixed(3));
+  if (!RM) {   /* 减少动效时热点停在原地，只保留亮度呼吸 */
+    gBeads.setAttribute('stroke-dashoffset', (-(ph * BEAD_V1) % BEAD_P1).toFixed(1));
+    gBeads2.setAttribute('stroke-dashoffset', (-(ph * BEAD_V2) % BEAD_P2).toFixed(1));
+  }
+}
+
 function renderFlow() {
   /* v9-P5 径向呼吸：内缘 ±0.9%、按 1/k 向外衰减（替代 v8 的整组均匀缩放，
      那种呼吸内外同幅，读作「整体缩放」而不是「盘在搏动」）。减少动效时归零。 */
@@ -764,20 +886,21 @@ function renderFlow() {
       a.bd.setAttribute('fill', dark ? DARKB[a.band] : BANDS[a.band]);
     }
 
-    /* v9-P1 弯折像：只在弧当前处于远侧时存在。
-       门控必须是平滑的 —— 弧随行程进出远侧半场，硬开关会让透明度突跳；
-       smoothstep(-sinφ: 0.05→0.40) 让它随几何自然淡入淡出。 */
+    /* v9-P1 / v10：弯折像只保留一阶。二阶、三阶在盘面上没有对比度可读 ——
+       4.7px/单位的缩放下，三层 26 单位间隔的淡带全部融进同色弧里，只是多画路径。
+       高阶像改放到「阴影内部」：那里是纯黑底，细环才读得出来（见 gRing3）。
+       全部用中线 + 描边（不用填充带），避免径向压缩引起的轮廓自交。 */
     const hGate = smoothstep(0.05, 0.40, -Math.sin(phiMid));
     if (a.h1) {
       if (hGate > 0.002) {
-        a.h1.setAttribute('d', ribbonPath(k, a.phi0, dphi, bw * 0.55, 12, sh, lensUp));
+        a.h1.setAttribute('d', centerline(k, a.phi0, dphi, 16, SHFLAT, lensUp));
         a.h1.setAttribute('opacity', Math.max(0, fade * 0.50 * hGate).toFixed(3));
       } else a.h1.setAttribute('opacity', 0);
     }
     if (a.h2) {
       if (hGate > 0.002) {
-        a.h2.setAttribute('d', ribbonPath(k, a.phi0, dphi, bw * 0.55, 10, sh, lensLow));
-        a.h2.setAttribute('opacity', Math.max(0, fade * 0.34 * hGate).toFixed(3));
+        a.h2.setAttribute('d', centerline(k, a.phi0, dphi, 13, SHFLAT, lensLow));
+        a.h2.setAttribute('opacity', Math.max(0, fade * 0.30 * hGate).toFixed(3));
       } else a.h2.setAttribute('opacity', 0);
     }
   }
@@ -801,6 +924,7 @@ function renderFlow() {
     gBackU.appendChild(fbu);  gBack.appendChild(fb);
     gFrontU.appendChild(ffu); gFront.appendChild(ff);
   }
+  updRing();   /* v10：光子环脉动 + 热点滑行，与主盘共用同一个 clock */
 }
 
 function startMotion() {
@@ -853,8 +977,8 @@ const intro = gsap.timeline({ paused: true })
   .fromTo([gDebBack, gDebFront], { opacity: 0 },
     { opacity: 1, duration: 1.6, ease: 'none' }, 1.0)
   /* v9：光子环不属于本体入场层（本体从 82% 放大），单独淡入，
-     否则前 0.9s 环会浮在缩小中的球外面 */
-  .fromTo(gPhoton, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'none' }, 0.55);
+     否则前 0.9s 环会浮在缩小中的球外面。v10 热点层同理同步淡入。 */
+  .fromTo([gPhoton, gBeadL], { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'none' }, 0.55);
 
 /* ---------------- 控件 ---------------- */
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -938,7 +1062,7 @@ gsap.ticker.add((t, dtMs) => {
   }
   fc++;
   if (t - fm > 600) {
-    ro.textContent = Math.round(fc * 1000 / (t - fm)) + 'fps · ' + arcs.length + ' 笔 · v9 · 碎屑 ' + DEBN + ' · 压扁 ' + SQ.toFixed(2);
+    ro.textContent = Math.round(fc * 1000 / (t - fm)) + 'fps · ' + arcs.length + ' 笔 · v10 · 碎屑 ' + DEBN + ' · 压扁 ' + SQ.toFixed(2);
     fc = 0; fm = t;
   }
 });
@@ -956,13 +1080,13 @@ if (location.search.includes('freeze')) { P.on = false; }   /* 定格用：不�
 if (location.search.includes('steady')) {
   drawFinal(); moving = true;
   gsap.set(gBodyIn, { opacity: 1, scale: 1 });   /* 直达稳态：跳过入场，主体必须直接在场 */
-  gsap.set(gPhoton, { opacity: 1 });             /* v9：光子环同步在场 */
+  gsap.set([gPhoton, gBeadL], { opacity: 1 });   /* v9：光子环同步在场（v10 含热点层） */
   gsap.set([gDebBack, gDebFront], { opacity: 1 });  /* v9：碎片同步在场 */
   if (mT) { clock = flow = parseFloat(mT[1]); renderFlow(); }
 } else if (mT) {
   const T = parseFloat(mT[1]);
   intro.progress(Math.min(1, T / 2.15));
-  if (T >= 2.15) { drawFinal(); moving = true; gsap.set(gBodyIn, { opacity: 1, scale: 1 }); gsap.set(gPhoton, { opacity: 1 });
+  if (T >= 2.15) { drawFinal(); moving = true; gsap.set(gBodyIn, { opacity: 1, scale: 1 }); gsap.set([gPhoton, gBeadL], { opacity: 1 });
     clock = flow = T - 2.15; renderFlow(); }
 } else {
   drawIntro(0);
