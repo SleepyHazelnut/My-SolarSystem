@@ -17,6 +17,14 @@
   button.on{background:#5B45C4;border-color:#5B45C4;color:#fff}
   .sep{width:1px;height:20px;background:#DED9EA;margin:0 4px}
   .ro{font-size:11.5px;color:#8A8699;font-family:Consolas,monospace;padding-left:6px}
+  /* v11 深空模式：页面一起转夜场，否则画面是一块「黑方片」贴在白纸上，
+     那比白纸更出戏。按钮同步反色。 */
+  body.sky{background:#06050A;color:#E9E5FF}
+  body.sky button{border-color:#332E4C;background:#151223;color:#C6BFE6}
+  body.sky button:hover{border-color:#7B6BC0}
+  body.sky button.on{background:#6E56DC;border-color:#6E56DC;color:#fff}
+  body.sky .sep{background:#2A2740}
+  body.sky .ro{color:#726C93}
 </style>
 </head>
 <body>
@@ -121,7 +129,13 @@ const ISCO  = 1.55;               /* 最内稳定轨道：以内俯冲坠落，�
 const PLFRAC = 0.25;              /* 行程最后 25% 为坠落段 */
 const ROT = 0.03;                 /* v9-P5 整体公转（rad/s），整盘净角位移不再为零 */
 const DOP_PHI = Math.PI;          /* v9-P4 多普勒增亮方位：左缘逼近（盘顺时针 +φ） */
-const DOP_AMP = 0.14;
+/* v11：深空模式下把多普勒集束拉到接近真实的量级。
+   白纸底上 ±14% 就够了（再大就开始花）；但暗底上「变暗」是直接露黑，
+   观感强得多，而且真实的相对论集束是 3~10 倍亮度比 —— 没有这种极端
+   明暗不对称，盘就读成「匀速转的装饰扇」，而不是「以半光速甩过来的物质」。
+   仍是只调不透明度、不动色板，风格不变。 */
+const SKY = !/paper/.test(location.search);   /* ?paper 回到白纸版 */
+const DOP_AMP = SKY ? 0.38 : 0.14;
 const DARKB = BANDS.map(c => darken(c, 0.55));   /* 坠落段红移压暗一档 */
 /* v10 试过「吸积闪烁」（每条弧亮度乘一个双频正弦），结论是这条路在平涂上走不通：
    主盘 fade 多数已经到 1（不透明度上限），往上乘会被 SVG 夹掉 ——
@@ -339,14 +353,17 @@ for (let i = 0; i < CFG.N; i++) {
   });
 }
 
-/* 近侧穿洞：k<1 的那两条横过内孔的紫带 */
+/* 近侧穿洞：k<1 的那两条横过内孔的紫带。
+   白纸版里它们是「鼻子/笑弧」，是那张图的可爱感来源；
+   深空版里它们就是硬伤 —— 视界以内不该有任何物质可见。
+   用 op=0 关掉（不走 continue，R() 要照吃，否则后面整盘重排）。 */
 for (let i = 0; i < 2; i++) {
   const phi0 = 0.35 + R() * 1.5;
   arcs.push({
     k: 0.72 + R() * 0.20, phi0,
     d0: CFG.S * (0.9 + 0.5 * R()) * 1.1,
     bw: (20 + 7 * R()) * CFG.width,
-    band: 4, op: 1, front: true, inner: false,
+    band: 4, op: SKY ? 0 : 1, front: true, inner: false,
   });
 }
 
@@ -461,27 +478,151 @@ const gDebFront= document.createElementNS(NS, 'g');
 const gHaloLow = document.createElementNS(NS, 'g');
 const gStream  = document.createElementNS(NS, 'g');
 
+/* ---------------- v11 深空模式 ----------------
+   黑洞这件事，一半靠形状，一半靠**介质**。白纸上的黑圆永远是贴纸，
+   深空里的黑圆才会读成「洞」—— 没有黑暗就没有坠落。
+   所以这一版换背景，并且让背景本身被引力弯曲：盘可以画得很像，
+   但只有背景的星被拉成同心弧，观者才相信弯的是空间，不是图案。
+   ?paper 可以退回白纸版（两个版本共用同一套盘面代码）。 */
+const gSky = document.createElementNS(NS, 'g');
+if (SKY) {
+  document.body.classList.add('sky');
+  const skyDefs = document.createElementNS(NS, 'defs');
+  skyDefs.innerHTML =
+    '<radialGradient id="skyg" cx="0.5" cy="0.5" r="0.66">' +
+      '<stop offset="0" stop-color="#1A1530"/>' +
+      '<stop offset="0.40" stop-color="#100D1D"/>' +
+      '<stop offset="1" stop-color="#05040A"/>' +
+    '</radialGradient>' +
+    '<radialGradient id="skyvig" cx="0.5" cy="0.5" r="0.74">' +
+      '<stop offset="0.50" stop-color="#000000" stop-opacity="0"/>' +
+      '<stop offset="1" stop-color="#000000" stop-opacity="0.62"/>' +
+    '</radialGradient>';
+  svg.appendChild(skyDefs);
+  const bg = document.createElementNS(NS, 'rect');
+  bg.setAttribute('x', 0); bg.setAttribute('y', 0);
+  bg.setAttribute('width', 1920); bg.setAttribute('height', 1920);
+  bg.setAttribute('fill', 'url(#skyg)');
+  gSky.appendChild(bg);
+  /* 暗角：把注意力压回中心，同时让四角真的黑下去 —— 这是「无限深」的错觉来源 */
+  const vg = document.createElementNS(NS, 'rect');
+  vg.setAttribute('x', 0); vg.setAttribute('y', 0);
+  vg.setAttribute('width', 1920); vg.setAttribute('height', 1920);
+  vg.setAttribute('fill', 'url(#skyvig)');
+  gSky.appendChild(vg);
+}
+
 /* v9-P3 静态星场：位置生成时直接烘入透镜主像位移 θ+ = (d+√(d²+4L²))/2，
    L=180 —— 洞周 500px 内的星全部落入俘获锥被丢弃（净空），
    500~600 一带因位移堆积变密（爱因斯坦环的密度特征）。
-   一次性计算，零每帧成本。R() 在此之前全部消耗完毕，不会扰动盘面布局。 */
+   一次性计算，零每帧成本。
+   v11：改用独立随机源 RS。原来吃 R()，改星数就会把后面碎屑的
+   随机序列整体挪位、整盘重排 —— 星场和盘面必须解耦。 */
 {
+  const RS = rng(2213);
+  const NST = SKY ? 900 : 70;
+  /* v11 修一个 v9 留下的概念错误：原来 θE=180 且把 d<240 的星全部丢掉，
+     而 d≈θE 那一圈**正是**强透镜区 —— 等于把唯一会弯的地方挖掉了，
+     剩下的只是弱场平移（θ ≈ β + θE²/β），看不出任何形变。
+     现在 θE=240，并且按「落到哪个半径」来决定画法：
+     d 在 250~440 的星会被推到屏幕半径 400~560，也就是阴影外那圈，
+     越靠近 θE 切向拉伸越狠 —— 那才是爱因斯坦环。 */
+  const TE = 240;
   let n = 0, guard = 0;
-  while (n < 70 && guard++ < 4000) {
-    const x = 40 + R() * 1840, y = 40 + R() * 1840;
+  while (n < NST && guard++ < 200000) {
+    /* 采样偏置：45% 的星直接撒在会成环的那一带，否则 1920² 的面积里
+       落到环上的只有一成，环永远稀稀拉拉。 */
+    let x, y;
+    if (SKY && RS() < 0.45) {
+      const rr = 250 + RS() * 270, ag = RS() * 2 * Math.PI;
+      x = BCX + rr * Math.cos(ag); y = BCY + rr * Math.sin(ag);
+    } else {
+      x = 20 + RS() * 1880; y = 20 + RS() * 1880;
+    }
     const vx = x - BCX, vy = y - BCY;
-    const d = Math.hypot(vx, vy);
-    if (d < 240 || d > 1500) continue;
-    const dp = 0.5 * (d + Math.sqrt(d * d + 4 * 180 * 180));
-    if (dp < 500) continue;                       /* 俘获锥内的星不放 */
-    const st = document.createElementNS(NS, 'circle');
-    st.setAttribute('cx', (BCX + vx * dp / d).toFixed(1));
-    st.setAttribute('cy', (BCY + vy * dp / d).toFixed(1));
-    st.setAttribute('r', (1.2 + R() * 1.4).toFixed(2));
-    st.setAttribute('fill', R() < 0.12 ? '#F4789B' : '#4B4560');
-    st.setAttribute('opacity', (0.16 + R() * 0.22).toFixed(3));
-    gStars.appendChild(st);
+    const d = Math.hypot(vx, vy) || 1;
+    if (d < 246 || d > 1600) continue;
+    const dp = 0.5 * (d + Math.sqrt(d * d + 4 * TE * TE));
+    const px = BCX + vx * dp / d, py = BCY + vy * dp / d;
+    if (!SKY) {
+      const st = document.createElementNS(NS, 'circle');
+      st.setAttribute('cx', px.toFixed(1));
+      st.setAttribute('cy', py.toFixed(1));
+      st.setAttribute('r', (1.2 + RS() * 1.4).toFixed(2));
+      st.setAttribute('fill', RS() < 0.12 ? '#F4789B' : '#4B4560');
+      st.setAttribute('opacity', (0.16 + RS() * 0.22).toFixed(3));
+      gStars.appendChild(st);
+      n++; continue;
+    }
+    /* 切向拉伸强度：按**源**半径算，越接近 θE 拉得越长。
+       这是透镜的真相 —— 同一个点光源在临界曲线附近被抹成一条长弧。 */
+    const t = clamp(1 - (d - 250) / 190, 0, 1);
+    const rr = 1.0 + RS() * 2.1;
+    if (t > 0.03) {
+      const span = 0.008 + 0.115 * t * t;
+      const ang = Math.atan2(py - BCY, px - BCX);
+      const a0 = ang - span / 2, a1 = ang + span / 2;
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', 'M' + (BCX + Math.cos(a0) * dp).toFixed(1) + ' ' + (BCY + Math.sin(a0) * dp).toFixed(1) +
+        'A' + dp.toFixed(1) + ' ' + dp.toFixed(1) + ' 0 0 1 ' +
+        (BCX + Math.cos(a1) * dp).toFixed(1) + ' ' + (BCY + Math.sin(a1) * dp).toFixed(1));
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', RS() < 0.24 ? '#FFD9A8' : '#E6EEFF');
+      p.setAttribute('stroke-width', (rr * 1.7).toFixed(2));
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('opacity', (0.26 + 0.60 * t).toFixed(3));
+      gStars.appendChild(p);
+    } else {
+      const st = document.createElementNS(NS, 'circle');
+      st.setAttribute('cx', px.toFixed(1));
+      st.setAttribute('cy', py.toFixed(1));
+      st.setAttribute('r', rr.toFixed(2));
+      const q = RS();
+      st.setAttribute('fill', q < 0.16 ? '#FFD9A8' : (q < 0.46 ? '#CFDCFF' : '#FFFFFF'));
+      st.setAttribute('opacity', (0.22 + RS() * 0.68).toFixed(3));
+      gStars.appendChild(st);
+    }
     n++;
+  }
+}
+
+/* v11 极向喷流：黑洞最省力的「身份证」。沿自转轴双向甩出的相对论性物质，
+   画成两条渐宽渐淡的锥。轴向取盘主轴的垂线（-20°+90°），再按观察倾角
+   做 0.60 的垂直压缩 —— 否则两条锥会直挺挺地立着，不像斜看。
+   平涂风格下用 10 段等分色阶拼出「渐淡」，不用 gradient。 */
+const gJet = document.createElementNS(NS, 'g');
+if (SKY) {
+  gJet.setAttribute('transform',
+    'translate(' + BCX + ' ' + BCY + ') scale(1 0.60) rotate(70)');
+  const JL = 1000, SEG = 10;
+  for (const dir of [1, -1]) {
+    for (let i = 0; i < SEG; i++) {
+      const x1 = dir * JL * i / SEG, x2 = dir * JL * (i + 1) / SEG;
+      const u1 = i / SEG, u2 = (i + 1) / SEG;
+      const w1 = 26 + 170 * Math.pow(u1, 0.75), w2 = 26 + 170 * Math.pow(u2, 0.75);
+      const q = document.createElementNS(NS, 'path');
+      q.setAttribute('d', 'M' + x1.toFixed(1) + ' ' + (-w1).toFixed(1) +
+        'L' + x2.toFixed(1) + ' ' + (-w2).toFixed(1) +
+        'L' + x2.toFixed(1) + ' ' + w2.toFixed(1) +
+        'L' + x1.toFixed(1) + ' ' + w1.toFixed(1) + 'Z');
+      q.setAttribute('fill', i < 3 ? '#D5E4FF' : '#A8C4FF');
+      q.setAttribute('opacity', (0.20 * Math.pow(1 - u1, 1.5) + 0.012).toFixed(3));
+      gJet.appendChild(q);
+    }
+    /* 轴心亮核：一条很细的高亮，让锥有「束」的感觉而不是一块淡色三角 */
+    for (let i = 0; i < 6; i++) {
+      const x1 = dir * JL * i / 6, x2 = dir * JL * (i + 1) / 6;
+      const u1 = i / 6;
+      const w = 4 + 7 * u1;
+      const q = document.createElementNS(NS, 'path');
+      q.setAttribute('d', 'M' + x1.toFixed(1) + ' ' + (-w).toFixed(1) +
+        'L' + x2.toFixed(1) + ' ' + (-(w + 1.5)).toFixed(1) +
+        'L' + x2.toFixed(1) + ' ' + (w + 1.5).toFixed(1) +
+        'L' + x1.toFixed(1) + ' ' + w.toFixed(1) + 'Z');
+      q.setAttribute('fill', '#F2F7FF');
+      q.setAttribute('opacity', (0.30 * Math.pow(1 - u1, 1.8) + 0.015).toFixed(3));
+      gJet.appendChild(q);
+    }
   }
 }
 
@@ -566,7 +707,7 @@ gBeads2.setAttribute('stroke-dasharray',
   (BEAD_P2 * 0.06).toFixed(1) + ' ' + (BEAD_P2 * 0.94).toFixed(1));
 gBeadL.appendChild(gBeads2);
 
-svg.append(gStars, gOrbit, hole, gBackU, gBack, gDebBack, gBodyIn,
+svg.append(gSky, gStars, gJet, gOrbit, hole, gBackU, gBack, gDebBack, gBodyIn,
            gHalo, gPhoton, gFrontU, gFront, gBeadL, gDebFront, gHaloLow, gStream);
 
 /* ---------------- 纸质颗粒 ----------------
@@ -669,9 +810,9 @@ for (let i = 0; i < hCand.length; i++) {
   const a = hCand[i];
   if (NOHALO) break;
   if (i >= 12 && !a.inner) continue;
-  a.h1 = mkLens(gHalo, a, 0.55);       /* 一阶像：只有这一阶在盘面上读得出来 */
+  a.h1 = mkLens(gHalo, a, SKY ? 0.92 : 0.55);   /* 一阶像：深空模式加粗，把盘和阴影连起来 */
   if (a.inner) {
-    a.h2 = mkLens(gHaloLow, a, 0.48);  /* 下缘镜像副像 */
+    a.h2 = mkLens(gHaloLow, a, SKY ? 0.80 : 0.48); /* 下缘镜像副像 */
   }
 }
 
@@ -797,7 +938,7 @@ function updRing() {
   const ph = clock;
   const pulse  = 0.5 + 0.5 * Math.sin(ph * 0.83);
   const pulse2 = 0.5 + 0.5 * Math.sin(ph * 1.37 + 1.9);
-  gRing.setAttribute('opacity', (0.68 + 0.16 * pulse).toFixed(3));
+  gRing.setAttribute('opacity', ((SKY ? 0.86 : 0.68) + 0.14 * pulse).toFixed(3));
   gRingInner.setAttribute('opacity', (0.30 + 0.12 * pulse2).toFixed(3));
   gRing3.setAttribute('opacity', (0.10 + 0.06 * pulse).toFixed(3));
   gRing4.setAttribute('opacity', (0.05 + 0.04 * pulse2).toFixed(3));
@@ -875,6 +1016,14 @@ function renderFlow() {
         ribbonPath(k * 0.96, a.phi0, dphi * 1.03, bw * 1.25, 12, sh));
     }
     let fade = (0.02 + 0.98 * env) * (1 - swallow) * dop;
+    /* v11 径向亮度梯度：内缘（k≈1.1）满亮，外缘（k≈2.7）只剩 38%。
+       没有这条，86 条弧在暗底上是「一样亮的一圈圈彩带」；
+       有了它，热量从洞里往外衰减，盘才有厚度和温度感。
+       白纸版不动 —— 纸上的定标是均匀的，改了就不是那张图了。 */
+    if (SKY) {
+      const rk = clamp((a.k - 1.06) / 1.64, 0, 1);
+      fade *= 1 - 0.52 * rk * rk;
+    }
     fade *= (SOLO < 0 ? 1 : (a.solo ? 1 : 0.05));
     a.bd.setAttribute('opacity', Math.max(0, a.op * fade).toFixed(3));
     a.un.setAttribute('opacity', Math.max(0, UN_OP * CFG.T * fade).toFixed(3));
@@ -894,13 +1043,13 @@ function renderFlow() {
     if (a.h1) {
       if (hGate > 0.002) {
         a.h1.setAttribute('d', centerline(k, a.phi0, dphi, 16, SHFLAT, lensUp));
-        a.h1.setAttribute('opacity', Math.max(0, fade * 0.50 * hGate).toFixed(3));
+        a.h1.setAttribute('opacity', Math.max(0, fade * (SKY ? 0.92 : 0.50) * hGate).toFixed(3));
       } else a.h1.setAttribute('opacity', 0);
     }
     if (a.h2) {
       if (hGate > 0.002) {
         a.h2.setAttribute('d', centerline(k, a.phi0, dphi, 13, SHFLAT, lensLow));
-        a.h2.setAttribute('opacity', Math.max(0, fade * 0.30 * hGate).toFixed(3));
+        a.h2.setAttribute('opacity', Math.max(0, fade * (SKY ? 0.55 : 0.30) * hGate).toFixed(3));
       } else a.h2.setAttribute('opacity', 0);
     }
   }
@@ -1043,7 +1192,7 @@ const setReal = on => {
   gBodyFace.style.display = on ? 'none' : '';
   bReal.classList.toggle('on', on);
 };
-setReal(location.search.includes('real'));
+setReal(SKY || location.search.includes('real'));
 bReal.onclick = () => setReal(gBodyFace.style.display !== 'none');
 
 const ro = document.getElementById('ro');
