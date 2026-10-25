@@ -1,23 +1,19 @@
 node_modules/
 dist/
+/.vite/
+/.workbuddy/
 .workbuddy-ai/
+
+# 本地素材与手稿：只在磁盘上保留，不入库
 _draft/
 星球素材/
 NOTES.md
-.vscode/*
-!.vscode/extensions.json
 .idea/
-.DS_Store
-Thumbs.db
-desktop.ini
-*.log
-npm-debug.log*
 
-# Python 缓存（_draft/rive/scripts/*.py 会生成）
-__pycache__/
-*.pyc
+# 偶尔会落到仓库根的日志（npm 崩溃时）
+*.log
+
 
 # 本地环境变量
 .env
 .env.*
-*.local
