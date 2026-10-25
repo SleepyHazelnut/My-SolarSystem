@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "个人主页。太阳角色用 SVG + GSAP 实现，代码在 src/。",
+  "description": "个人主页。首页是自包含的黑洞 SVG 动画，点进 viewer.html 浏览十颗星系角色。",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

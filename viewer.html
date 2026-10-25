@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>太阳系角色 · 个人主页</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- 单角色浏览：一页一颗，底部按钮切换；地球页带月球。
+       舞台的位置与尺寸由 `src/main.js` 的浏览段写进行内样式（`--x` / `--y` / `--w`）。
+       星系平面图的轨道参数已停用，见 `src/main.js` 的 `GALAXY` 注释块。 -->
+  <!-- 必须走 HTTP 打开（npm run dev）—— file:// 下模块与素材会被浏览器拦掉 -->
+  <a class="viewer-back" href="./index.html">&#8249; 黑洞</a>
+
+  <main class="hero">
+    <div class="stage" data-character="sun"></div>
+    <div class="stage" data-character="jupiter"></div>
+    <div class="stage" data-character="saturn"></div>
+    <div class="stage" data-character="uranus"></div>
+    <div class="stage" data-character="neptune"></div>
+    <div class="stage" data-character="mercury"></div>
+    <div class="stage" data-character="venus"></div>
+    <div class="stage" data-character="earth"></div>
+    <div class="stage" data-character="moon"></div>
+    <div class="stage" data-character="mars"></div>
+  </main>
+
+  <nav class="viewer-ui" aria-label="切换角色">
+    <button type="button" class="viewer-btn" data-step="-1" aria-label="上一颗">&#8249;</button>
+    <span class="viewer-name" aria-live="polite">太阳</span>
+    <button type="button" class="viewer-btn" data-step="1" aria-label="下一颗">&#8250;</button>
+  </nav>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

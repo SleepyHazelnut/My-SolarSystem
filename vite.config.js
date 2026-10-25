@@ -1,4 +1,7 @@
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+
+const here = (name) => fileURLToPath(new URL(name, import.meta.url));
 
 export default defineConfig({
   server: {
@@ -13,5 +16,13 @@ export default defineConfig({
   build: {
     // 调高避免噪音
     chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      // 两个入口：index.html 是黑洞主页（单文件、内联 GSAP，无模块依赖），
+      // viewer.html 是星系角色浏览页（走 src/main.js）。漏一个，产物里就少一页。
+      input: {
+        main: here('index.html'),
+        viewer: here('viewer.html'),
+      },
+    },
   },
 });

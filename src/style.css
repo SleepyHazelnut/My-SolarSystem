@@ -90,6 +90,29 @@ body {
   transition: opacity 0.12s ease-out;
 }
 
+/* 回黑洞主页：与底部切换条同一套奶白药丸，放左上角，不跟角色抢位置。 */
+.viewer-back {
+  position: fixed;
+  top: 3vmin;
+  left: 3vmin;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.5em 0.95em;
+  border-radius: 999px;
+  background: rgba(255, 245, 230, 0.88);
+  box-shadow: 0 2px 14px rgba(58, 46, 30, 0.14);
+  color: var(--ink);
+  font-size: 0.86em;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  user-select: none;
+  transition: background 0.16s ease-out;
+}
+
+.viewer-back:hover { background: rgba(255, 245, 230, 1); }
+.viewer-back:active { transform: scale(0.98); }
+
 /* ---------- 星系平面图（2026-10-11 停用） ---------- */
 
 /* 整块：正方形，边长 = min(容器宽, `--hero-max`, 容器高)。
