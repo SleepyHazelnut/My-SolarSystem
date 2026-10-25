@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>黑洞本体 × 吸积盘 · v10（真实感：坠落/透镜/吸入物/闪烁/热点）</title>
+<title>黑洞本体 × 吸积盘 · v12（深空/引力透镜/吸积流线/坠落）</title>
 <style>
   html,body{margin:0;height:100%;background:#F7F6F9;color:#26232F;
     font-family:"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased;
@@ -93,6 +93,24 @@
    修掉的 bug：弯折像原本用「填充带 + 径向压缩」，内/外轮廓自交，
    nonzero 填充在交叠处挖洞，洞后面正是黑球 → 阴影边缘（3 点钟最明显）
    出现暗色划痕。改成中线 + 描边（centerline），永不自交。
+   -------------------------------------------------------------------
+   v11/v12：补「黑洞感」缺的两件事 —— 介质和路径。五官保留（拟人化是精华）。
+   v11 深空模式（默认；加 ?paper 回到白纸版）：
+     1) 深空底 + 暗角：白纸上的黑圆是贴纸，深空里的黑圆才是洞。
+     2) 星场 70→900 颗，θE 180→240，并按「落到哪个半径」决定画法：
+        贴近临界曲线的星画成**切向短弧**（点光源被拉成沿环的弧）。
+        修掉 v9 的概念错误 —— 原来把 d<240 全丢掉，而那正是唯一的强透镜区，
+        剩下的只是弱场平移 θ≈β+θE²/β，形变为零，透镜等于白做。
+     3) 径向亮度梯度（内 100% → 外 48%）：平涂只有不透明度这一条亮度通道。
+     4) 多普勒 14%→38%（暗底上「变暗」直接露黑，观感强得多）。
+     5) 极向喷流：10 段等分色阶拼出渐淡，不用 gradient。
+     6) 视界内两条 k<1 穿洞带 op=0 —— 视界以内不该有物质可见。
+   v12 吸积流线（?noflow 可关）：
+     22 条对数螺旋从盘外缘绕进视界（k 2.05→1.10，0.7~1.3 圈，u^0.8 收紧）。
+     每条两层：极淡的连续线勾出路径 + 移动的亮块表示流动；
+     dashoffset 沿路径向内推进 = 物质一块块被拽进去。
+     没有路径只有速度，眼睛读不出「吸」，只能读出「转」—— 这是关键的一条。
+     颜色分介质：深空用发光浅色，纸感用珊瑚/赭色（奶油色压白纸等于没画）。
    =================================================================== */
 const CX = 1083, CY = 923, A = 338, SIG = 0.75, TILT = -20 * Math.PI / 180;
 const CT = Math.cos(TILT), ST = Math.sin(TILT);
@@ -136,14 +154,16 @@ const DOP_PHI = Math.PI;          /* v9-P4 多普勒增亮方位：左缘逼近�
    仍是只调不透明度、不动色板，风格不变。 */
 const SKY = !/paper/.test(location.search);   /* ?paper 回到白纸版 */
 const DOP_AMP = SKY ? 0.38 : 0.14;
-const DARKB = BANDS.map(c => darken(c, 0.55));   /* 坠落段红移压暗一档 */
+/* 坠落段红移压暗一档。暗底上不能压太狠：压到 0.55 的深色细带在星空上
+   读成「划痕」而不是「暗掉的光」，所以深空模式只压到 0.74。 */
+const DARKB = BANDS.map(c => darken(c, SKY ? 0.74 : 0.55));
 /* v10 试过「吸积闪烁」（每条弧亮度乘一个双频正弦），结论是这条路在平涂上走不通：
    主盘 fade 多数已经到 1（不透明度上限），往上乘会被 SVG 夹掉 ——
    实测对称抖动只影响 0.96% 的像素；改单向（只压暗）也只有 0.69%，
    代价是整盘平均压暗 3%。要让满饱和的色块真的抖起来只能换填充色，
    那就破坏了「平涂一个色」这条风格前提。所以不做，参数和开关一并删掉。
    想复现的话：在 fade 上乘 1 - 0.04*(0.5+0.5sin) - 0.02*(0.5+0.5sin) 即可。 */
-/* 调试隔离开关：?noplunge 关坠落/内倾，?nohalo 关弯折像 */
+/* 调试隔离开关：?noplunge 关坠落/内倾，?nohalo 关弯折像，?noflow 关吸积流线，?paper 白纸版 */
 const NOPL   = /noplunge/.test(location.search);
 const NOHALO = /nohalo/.test(location.search);
 
@@ -707,8 +727,74 @@ gBeads2.setAttribute('stroke-dasharray',
   (BEAD_P2 * 0.06).toFixed(1) + ' ' + (BEAD_P2 * 0.94).toFixed(1));
 gBeadL.appendChild(gBeads2);
 
+/* ---------------- v12 吸积流线 ----------------
+   「吸入感」缺的不是速度，是**路径**。86 条弧各自走一段就消失，眼睛找不到
+   一条从外面连进洞里的线，所以只读得出「转」，读不出「吸」。
+   这里补 22 条对数螺旋：起点在盘外缘（k≈2.5），终点压在视界（k=1.10），
+   1 圈左右的绕入量。用 dasharray 把它切成一段段的「物质块」，
+   再让 dashoffset 沿路径往里走 —— 一块一块被拽进洞里，方向一目了然。
+   放在 gBeadL 之下、gFront 之上：压过整个盘面（近侧也要能看见），
+   但不会被任何弧盖住；终点正好落在亮边上，读作「进洞了」。
+   独立随机源，不动 R()，盘面布局一字不变。 */
+const NOFLOW = /noflow/.test(location.search);
+const gFlow = document.createElementNS(NS, 'g');
+const flows = [];
+if (!NOFLOW) {
+  const RF = rng(7717);
+  const FN = 22, K_END_F = 1.10;
+  for (let i = 0; i < FN; i++) {
+    const phi0 = i / FN * 2 * Math.PI + RF() * 0.28;
+    /* 纸感版起点收紧：纸上一旦出去就是白底上的几根孤线，像划痕 */
+    const kOut = SKY ? 2.05 + RF() * 0.45 : 1.82 + RF() * 0.30;
+    const turns = 0.70 + RF() * 0.60;          /* 绕入圈数：0.7~1.3 圈 */
+    const lam = Math.log(kOut / K_END_F);      /* 保证终点正好落在 kEnd */
+    const segs = 54;
+    let d = '';
+    for (let j = 0; j <= segs; j++) {
+      const u = j / segs;
+      const kk = kOut * Math.exp(-lam * u);
+      /* u^0.8：外层松、内层紧 —— 同样的绕转角在内圈吃掉更少半径，
+         螺旋自然收紧，观感上就是「越靠近越快」 */
+      const ph = phi0 + 2 * Math.PI * turns * Math.pow(u, 0.80);
+      const p = pt(kk, ph);
+      d += (j ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+    }
+    /* 颜色按介质走：深空版用发光色（浅），纸感版必须反过来 ——
+       奶油色压在白纸上等于没画，得用深琥珀/赭色像铅笔线。 */
+    const q0 = RF();
+    const col = SKY
+      ? (q0 < 0.3 ? '#FFF3CC' : (q0 < 0.6 ? '#FFD98E' : '#FFB877'))
+      : (q0 < 0.34 ? '#E4805F' : (q0 < 0.7 ? '#D9704B' : '#F0A184'));
+    const w0  = 4.5 + RF() * 5.5;
+    /* 一条流线两层：底下一根**极淡的连续线**负责「勾出路径」，
+       上面一段移动的**亮块**负责「看出流动」。
+       一开始只画虚线段，结果是盘外飘着一堆没头没尾的短杠 ——
+       眼睛连不成线，反而更乱。 */
+    const base = document.createElementNS(NS, 'path');
+    base.setAttribute('d', d);
+    base.setAttribute('fill', 'none');
+    base.setAttribute('stroke', col);
+    base.setAttribute('stroke-width', (w0 * 0.66).toFixed(1));
+    base.setAttribute('stroke-linecap', 'round');
+    base.setAttribute('opacity', (SKY ? 0.16 : 0.24).toFixed(3));
+    gFlow.appendChild(base);
+
+    const el = document.createElementNS(NS, 'path');
+    el.setAttribute('d', d);
+    el.setAttribute('fill', 'none');
+    el.setAttribute('stroke', col);
+    el.setAttribute('stroke-width', w0.toFixed(1));
+    el.setAttribute('stroke-linecap', 'round');
+    el.setAttribute('stroke-dasharray',
+      (170 + RF() * 130).toFixed(1) + ' ' + (150 + RF() * 210).toFixed(1));
+    el.setAttribute('opacity', (SKY ? 0.48 : 0.46).toFixed(3));
+    gFlow.appendChild(el);
+    flows.push({ el, v: (150 + RF() * 110) * (1 + (kOut - 2.05) * 0.4), ph: RF() * 4000 });
+  }
+}
+
 svg.append(gSky, gStars, gJet, gOrbit, hole, gBackU, gBack, gDebBack, gBodyIn,
-           gHalo, gPhoton, gFrontU, gFront, gBeadL, gDebFront, gHaloLow, gStream);
+           gHalo, gPhoton, gFrontU, gFront, gFlow, gBeadL, gDebFront, gHaloLow, gStream);
 
 /* ---------------- 纸质颗粒 ----------------
    平涂色块之间全是硬边，放大看就像矢量填色软件直接导出的。
@@ -934,6 +1020,15 @@ const DC = 0.004;          /* 求瞬时速度用的相位步长 */
    驱动写在 renderFlow 末尾统一调用，这样 ?t= 定格截图也能拿到确定的一帧
    （不依赖 ticker 累积了多少帧，验证时可复现）。 */
 const BEAD_V1 = 46, BEAD_V2 = 27;   /* px/s 沿环滑行速度；副组慢一档，两组不同步 */
+/* v12 流线驱动：沿路径方向（外→内）推进 dash，就是物质一块块被拽进去。
+   负的 dashoffset = 图案朝路径终点移动；终点在视界上，方向天然正确。 */
+function updFlow() {
+  if (NOFLOW || RM) return;
+  for (const f of flows) {
+    f.el.setAttribute('stroke-dashoffset', (-(f.ph + clock * f.v)).toFixed(1));
+  }
+}
+
 function updRing() {
   const ph = clock;
   const pulse  = 0.5 + 0.5 * Math.sin(ph * 0.83);
@@ -975,8 +1070,10 @@ function renderFlow() {
       plunging = true;
       pe = EASE_PLUNGE((cyc - (1 - PLFRAC)) / PLFRAC);
       k -= (k - K_END) * pe;
-      dphiMul = 1 + 0.38 * pe;
-      bwMul   = 1 - 0.30 * pe;
+      dphiMul = 1 + 0.62 * pe;    /* v12：沿运动方向拉长 —— 潮汐拉伸 */
+      bwMul   = 1 - 0.40 * pe;    /* v12：同时变细 —— 丝状化。
+                                     拉到 2×/0.48× 会变成黑色细针：压暗后的填充
+                                     在暗底上几乎等于背景色，细长一条就成了划痕。 */
     } else if (!NOPL && a.k > ISCO && cyc > 0.86) {
       const le = (cyc - 0.86) / 0.14;
       lean = -Math.min(0.10, (a.k - 1.35) * 0.09) * le;
@@ -1074,6 +1171,7 @@ function renderFlow() {
     gFrontU.appendChild(ffu); gFront.appendChild(ff);
   }
   updRing();   /* v10：光子环脉动 + 热点滑行，与主盘共用同一个 clock */
+  updFlow();   /* v12：吸积流线沿路径向内推进 */
 }
 
 function startMotion() {
@@ -1127,7 +1225,9 @@ const intro = gsap.timeline({ paused: true })
     { opacity: 1, duration: 1.6, ease: 'none' }, 1.0)
   /* v9：光子环不属于本体入场层（本体从 82% 放大），单独淡入，
      否则前 0.9s 环会浮在缩小中的球外面。v10 热点层同理同步淡入。 */
-  .fromTo([gPhoton, gBeadL], { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'none' }, 0.55);
+  .fromTo([gPhoton, gBeadL], { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'none' }, 0.55)
+  /* v12：流线晚一点进来 —— 先看见盘成形，再看见它开始往里流 */
+  .fromTo(gFlow, { opacity: 0 }, { opacity: 1, duration: 1.1, ease: 'none' }, 1.35);
 
 /* ---------------- 控件 ---------------- */
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1192,7 +1292,7 @@ const setReal = on => {
   gBodyFace.style.display = on ? 'none' : '';
   bReal.classList.toggle('on', on);
 };
-setReal(SKY || location.search.includes('real'));
+setReal(location.search.includes('real'));
 bReal.onclick = () => setReal(gBodyFace.style.display !== 'none');
 
 const ro = document.getElementById('ro');
@@ -1211,7 +1311,7 @@ gsap.ticker.add((t, dtMs) => {
   }
   fc++;
   if (t - fm > 600) {
-    ro.textContent = Math.round(fc * 1000 / (t - fm)) + 'fps · ' + arcs.length + ' 笔 · v10 · 碎屑 ' + DEBN + ' · 压扁 ' + SQ.toFixed(2);
+    ro.textContent = Math.round(fc * 1000 / (t - fm)) + 'fps · ' + arcs.length + ' 笔 · v12 · 碎屑 ' + DEBN + ' · 压扁 ' + SQ.toFixed(2);
     fc = 0; fm = t;
   }
 });
@@ -1230,12 +1330,13 @@ if (location.search.includes('steady')) {
   drawFinal(); moving = true;
   gsap.set(gBodyIn, { opacity: 1, scale: 1 });   /* 直达稳态：跳过入场，主体必须直接在场 */
   gsap.set([gPhoton, gBeadL], { opacity: 1 });   /* v9：光子环同步在场（v10 含热点层） */
+  gsap.set(gFlow, { opacity: 1 });               /* v12：流线同步在场 */
   gsap.set([gDebBack, gDebFront], { opacity: 1 });  /* v9：碎片同步在场 */
   if (mT) { clock = flow = parseFloat(mT[1]); renderFlow(); }
 } else if (mT) {
   const T = parseFloat(mT[1]);
   intro.progress(Math.min(1, T / 2.15));
-  if (T >= 2.15) { drawFinal(); moving = true; gsap.set(gBodyIn, { opacity: 1, scale: 1 }); gsap.set([gPhoton, gBeadL], { opacity: 1 });
+  if (T >= 2.15) { drawFinal(); moving = true; gsap.set(gBodyIn, { opacity: 1, scale: 1 }); gsap.set([gPhoton, gBeadL], { opacity: 1 }); gsap.set(gFlow, { opacity: 1 });
     clock = flow = T - 2.15; renderFlow(); }
 } else {
   drawIntro(0);
